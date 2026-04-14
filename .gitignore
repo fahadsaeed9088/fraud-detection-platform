@@ -1,0 +1,50 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env
+
+# Environment variables
+.env
+*.env
+
+# Dataset files (too large for git)
+data/raw/*.csv
+data/processed/*.csv
+data/processed/*.pkl
+
+# Trained model files
+models/*.pkl
+models/*.h5
+models/*.keras
+
+# SQLite database
+instance/*.db
+instance/*.sqlite3
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/

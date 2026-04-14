@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}Train Models — Fraud Detection Platform{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-8">
+
+    <h3 class="fw-bold mb-1"><i class="bi bi-cpu me-2 text-warning"></i>Model Training</h3>
+    <p class="text-muted mb-4">
+      Preprocess the dataset with SMOTE and train all four classifiers. Results are
+      saved automatically to the database.
+    </p>
+
+    {% if not dataset_exists %}
+    <div class="alert alert-warning d-flex align-items-center">
+      <i class="bi bi-exclamation-triangle-fill me-2 fs-5"></i>
+      <div>Dataset not found. Please <a href="{{ url_for('upload') }}" class="alert-link">upload creditcard.csv</a> first.</div>
+    </div>
+    {% endif %}
+
+    {% if error %}
+    <div class="alert alert-danger">
+      <strong>Training failed:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Pipeline overview -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-bold border-0 pt-3">
+        <i class="bi bi-diagram-3 me-2 text-info"></i>Training Pipeline
+      </div>
+      <div class="card-body">
+        <div class="row g-3 text-center">
+          {% set steps = [
+            ('1', 'Load Data', 'bi-file-earmark-text', 'text-primary'),
+            ('2', 'Validate Columns', 'bi-check2-square', 'text-info'),
+            ('3', 'Scale Features', 'bi-sliders', 'text-warning'),
+            ('4', 'Train/Test Split', 'bi-shuffle', 'text-secondary'),
+            ('5', 'Apply SMOTE', 'bi-plus-circle', 'text-success'),
+            ('6', 'Train 4 Models', 'bi-cpu', 'text-danger'),
+          ] %}
+          {% for num, label, icon, color in steps %}
+          <div class="col-4 col-md-2">
+            <div class="p-2 rounded bg-light">
+              <i class="bi {{ icon }} fs-4 {{ color }}"></i>
+              <div class="small fw-semibold mt-1">{{ label }}</div>
+              <div class="badge bg-secondary-subtle text-secondary mt-1">Step {{ num }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Model descriptions -->
+    <div class="row g-3 mb-4">
+      {% set models_info = [
+        ('Logistic Regression', 'bi-graph-up', 'text-primary', 'sklearn — linear classifier with L2 regularisation. Fast and interpretable baseline.'),
+        ('Random Forest', 'bi-tree', 'text-success', 'sklearn — ensemble of 100 decision trees with balanced class weights.'),
+        ('XGBoost', 'bi-lightning-charge', 'text-warning', 'Gradient boosted trees with scale_pos_weight for class imbalance.'),
+        ('Neural Network', 'bi-diagram-2', 'text-danger', 'Keras Sequential: Dense(32)→Dropout→Dense(16)→Dropout→Dense(1, sigmoid).'),
+      ] %}
+      {% for name, icon, color, desc in models_info %}
+      <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-body">
+            <div class="d-flex align-items-center mb-1">
+              <i class="bi {{ icon }} {{ color }} fs-5 me-2"></i>
+              <span class="fw-semibold">{{ name }}</span>
+            </div>
+            <p class="small text-muted mb-0">{{ desc }}</p>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Training form -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <form method="POST" id="trainForm">
+          <div class="alert alert-info mb-3 py-2">
+            <i class="bi bi-info-circle me-1"></i>
+            Training on the full dataset (~284 K rows) typically takes
+            <strong>3–8 minutes</strong> depending on hardware.
+          </div>
+          <div class="d-grid">
+            <button type="submit" class="btn btn-warning btn-lg fw-semibold"
+                    {% if not dataset_exists %}disabled{% endif %}>
+              <i class="bi bi-play-circle me-1"></i> Train All Models
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card border-0 shadow-sm bg-light">
+      <div class="card-body">
+        <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2 text-secondary"></i>What happens</h6>
+        <ul class="small text-muted mb-0">
+          <li class="mb-2">Dataset is loaded and validated from <code>data/raw/creditcard.csv</code>.</li>
+          <li class="mb-2">Amount and Time are standardised with <code>StandardScaler</code>.</li>
+          <li class="mb-2">80/20 stratified train/test split is applied.</li>
+          <li class="mb-2">SMOTE is applied <em>only on training data</em> to prevent leakage.</li>
+          <li class="mb-2">All four models are trained and saved to <code>models/</code>.</li>
+          <li>Metrics (Accuracy, Precision, Recall, F1, ROC-AUC) are computed and stored.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  document.getElementById('trainForm').addEventListener('submit', function () {
+    showLoading('Training models… this may take several minutes.');
+  });
+</script>
+{% endblock %}

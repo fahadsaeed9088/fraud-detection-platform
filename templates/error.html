@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}{{ error_code }} Error — Fraud Detection Platform{% endblock %}
+
+{% block content %}
+<div class="text-center py-5">
+  <div class="display-1 fw-bold text-danger mb-3">{{ error_code }}</div>
+  <h4 class="fw-semibold mb-2">{{ message }}</h4>
+  <p class="text-muted mb-4">Something went wrong. Please try again or return to the home page.</p>
+  <a href="{{ url_for('index') }}" class="btn btn-primary">
+    <i class="bi bi-house me-1"></i> Back to Home
+  </a>
+</div>
+{% endblock %}

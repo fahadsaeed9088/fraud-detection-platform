@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% block title %}Model Results — Fraud Detection Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <h3 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow me-2 text-info"></i>Model Comparison Results</h3>
+    <p class="text-muted mb-0">Performance across all four classifiers on the held-out test set.</p>
+  </div>
+  <a href="{{ url_for('train') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-repeat me-1"></i> Retrain
+  </a>
+</div>
+
+<!-- Best model highlight -->
+{% if best_model %}
+<div class="alert alert-success d-flex align-items-center mb-4">
+  <i class="bi bi-trophy-fill fs-4 me-3 text-warning"></i>
+  <div>
+    <strong>Best Model (by ROC-AUC): {{ best_model }}</strong>
+    &mdash; ROC-AUC {{ (results[best_model].roc_auc * 100) | round(2) }}%,
+    F1-Score {{ (results[best_model].f1 * 100) | round(2) }}%
+  </div>
+</div>
+{% endif %}
+
+<!-- Metric comparison table -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-header bg-white fw-bold border-0 pt-3">
+    <i class="bi bi-table me-2"></i>Metrics Table
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Model</th>
+            <th class="text-end">Accuracy</th>
+            <th class="text-end">Precision</th>
+            <th class="text-end">Recall</th>
+            <th class="text-end">F1-Score</th>
+            <th class="text-end">ROC-AUC</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for name, m in results.items() %}
+          <tr {% if name == best_model %}class="table-success fw-semibold"{% endif %}>
+            <td>
+              {{ name }}
+              {% if name == best_model %}<i class="bi bi-star-fill text-warning ms-1"></i>{% endif %}
+            </td>
+            <td class="text-end">{{ (m.accuracy * 100) | round(2) }}%</td>
+            <td class="text-end">{{ (m.precision * 100) | round(2) }}%</td>
+            <td class="text-end">{{ (m.recall * 100) | round(2) }}%</td>
+            <td class="text-end">{{ (m.f1 * 100) | round(2) }}%</td>
+            <td class="text-end">
+              <span class="badge
+                {% if m.roc_auc >= 0.95 %}bg-success
+                {% elif m.roc_auc >= 0.90 %}bg-primary
+                {% elif m.roc_auc >= 0.80 %}bg-warning text-dark
+                {% else %}bg-danger{% endif %}">
+                {{ (m.roc_auc * 100) | round(2) }}%
+              </span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Bar chart + Radar chart -->
+<div class="row g-4 mb-4">
+  <div class="col-lg-7">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-bold border-0 pt-3">
+        <i class="bi bi-bar-chart me-2 text-primary"></i>ROC-AUC &amp; F1-Score Comparison
+      </div>
+      <div class="card-body">
+        <div id="comparisonChart"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-5">
+    <div class="card border-0 shadow-sm h-100">
+      <div class="card-header bg-white fw-bold border-0 pt-3">
+        <i class="bi bi-bullseye me-2 text-danger"></i>Metrics Radar
+      </div>
+      <div class="card-body">
+        <div id="radarChart"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confusion matrices -->
+<h5 class="fw-semibold mb-3 text-secondary">Confusion Matrices</h5>
+<div class="row g-4 mb-4">
+  {% for model_name, cm_json in cm_charts.items() %}
+  <div class="col-md-6 col-xl-3">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body">
+        <div id="cm_{{ loop.index }}"></div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- Dataset EDA summary (if available) -->
+{% if eda %}
+<div class="card border-0 shadow-sm mb-4 bg-light">
+  <div class="card-header bg-transparent fw-bold border-0 pt-3">
+    <i class="bi bi-info-circle me-2 text-muted"></i>Dataset Used
+  </div>
+  <div class="card-body">
+    <div class="row text-center">
+      <div class="col-4">
+        <div class="fw-bold fs-5">{{ "{:,}".format(eda.n_rows) }}</div>
+        <div class="small text-muted">Total Rows</div>
+      </div>
+      <div class="col-4">
+        <div class="fw-bold fs-5 text-danger">{{ "{:,}".format(eda.class_distribution.get('1', 0)) }}</div>
+        <div class="small text-muted">Fraud</div>
+      </div>
+      <div class="col-4">
+        <div class="fw-bold fs-5 text-success">{{ "{:,}".format(eda.class_distribution.get('0', 0)) }}</div>
+        <div class="small text-muted">Legitimate</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<a href="{{ url_for('cases') }}" class="btn btn-danger">
+  <i class="bi bi-folder2-open me-1"></i> Manage Fraud Cases
+</a>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Comparison bar chart
+  var compData = {{ comparison_chart | safe }};
+  Plotly.newPlot('comparisonChart', compData.data, compData.layout, {responsive: true, displayModeBar: false});
+
+  // Radar chart
+  var radarData = {{ radar_chart | safe }};
+  Plotly.newPlot('radarChart', radarData.data, radarData.layout, {responsive: true, displayModeBar: false});
+
+  // Confusion matrices
+  {% for model_name, cm_json in cm_charts.items() %}
+  var cm{{ loop.index }} = {{ cm_json | safe }};
+  Plotly.newPlot('cm_{{ loop.index }}', cm{{ loop.index }}.data, cm{{ loop.index }}.layout, {responsive: true, displayModeBar: false});
+  {% endfor %}
+</script>
+{% endblock %}

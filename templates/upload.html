@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Upload Dataset — Fraud Detection Platform{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-lg-8">
+
+    <h3 class="fw-bold mb-1"><i class="bi bi-cloud-upload me-2 text-primary"></i>Upload Dataset</h3>
+    <p class="text-muted mb-4">Upload <code>creditcard.csv</code> from the Kaggle Credit Card Fraud Detection dataset.</p>
+
+    <!-- Upload form -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-body p-4">
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+          <div id="dropZone" class="drop-zone text-center p-5 mb-3 rounded border border-2 border-dashed"
+               onclick="document.getElementById('fileInput').click()">
+            <i class="bi bi-file-earmark-spreadsheet fs-1 text-secondary"></i>
+            <p class="mt-2 mb-1 fw-semibold">Drag &amp; drop or click to select</p>
+            <p class="text-muted small mb-0">Accepted: <code>.csv</code> — Max 500 MB</p>
+            <p id="selectedFileName" class="text-primary fw-semibold mt-2 mb-0 d-none"></p>
+          </div>
+          <input type="file" name="file" id="fileInput" accept=".csv" class="d-none" required />
+          <div class="d-grid">
+            <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>
+              <i class="bi bi-cloud-upload me-1"></i> Upload &amp; Validate
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Expected schema info -->
+    <div class="card border-0 shadow-sm mb-4 bg-light">
+      <div class="card-body">
+        <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-1 text-info"></i>Expected Format</h6>
+        <ul class="mb-0 small text-muted">
+          <li>Columns: <code>Time</code>, <code>V1</code>–<code>V28</code>, <code>Amount</code>, <code>Class</code></li>
+          <li><code>Class = 1</code> indicates a fraudulent transaction, <code>0</code> is legitimate.</li>
+          <li>Download from <a href="https://www.kaggle.com/mlg-ulb/creditcardfraud" target="_blank">Kaggle</a>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- EDA results (after upload or on revisit) -->
+    {% if eda %}
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-bold border-0 pt-3">
+        <i class="bi bi-bar-chart-line me-2 text-success"></i>Dataset Summary
+        {% if uploaded %}<span class="badge bg-success ms-2">Just uploaded</span>{% endif %}
+      </div>
+      <div class="card-body">
+        <div class="row g-3 text-center">
+          <div class="col-6 col-md-3">
+            <div class="p-3 rounded bg-light">
+              <div class="fs-4 fw-bold text-primary">{{ "{:,}".format(eda.n_rows) }}</div>
+              <div class="small text-muted">Rows</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="p-3 rounded bg-light">
+              <div class="fs-4 fw-bold text-primary">{{ eda.n_cols }}</div>
+              <div class="small text-muted">Columns</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="p-3 rounded bg-light">
+              <div class="fs-4 fw-bold text-danger">{{ "{:,}".format(eda.class_distribution.get('1', 0)) }}</div>
+              <div class="small text-muted">Fraud Transactions</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="p-3 rounded bg-light">
+              <div class="fs-4 fw-bold text-success">{{ "{:,}".format(eda.class_distribution.get('0', 0)) }}</div>
+              <div class="small text-muted">Legitimate Transactions</div>
+            </div>
+          </div>
+        </div>
+
+        <hr class="my-3" />
+
+        <div class="row">
+          <div class="col-md-6">
+            <h6 class="fw-semibold mb-2">Class Distribution</h6>
+            <div class="d-flex align-items-center mb-1">
+              <span class="badge bg-danger me-2">Fraud</span>
+              <div class="progress flex-grow-1 me-2" style="height:12px;">
+                <div class="progress-bar bg-danger" style="width:{{ eda.fraud_rate }}%"></div>
+              </div>
+              <span class="small fw-semibold">{{ eda.fraud_rate }}%</span>
+            </div>
+            <div class="d-flex align-items-center">
+              <span class="badge bg-success me-2">Legit&nbsp;</span>
+              <div class="progress flex-grow-1 me-2" style="height:12px;">
+                <div class="progress-bar bg-success" style="width:{{ 100 - eda.fraud_rate }}%"></div>
+              </div>
+              <span class="small fw-semibold">{{ (100 - eda.fraud_rate) | round(2) }}%</span>
+            </div>
+          </div>
+          <div class="col-md-6 mt-3 mt-md-0">
+            <h6 class="fw-semibold mb-2">Amount Statistics</h6>
+            <table class="table table-sm table-borderless small mb-0">
+              <tr><td class="text-muted">Min</td><td class="fw-semibold">${{ eda.amount_stats.min }}</td></tr>
+              <tr><td class="text-muted">Max</td><td class="fw-semibold">${{ eda.amount_stats.max }}</td></tr>
+              <tr><td class="text-muted">Mean</td><td class="fw-semibold">${{ eda.amount_stats.mean }}</td></tr>
+              <tr><td class="text-muted">Median</td><td class="fw-semibold">${{ eda.amount_stats.median }}</td></tr>
+              <tr><td class="text-muted">Std Dev</td><td class="fw-semibold">${{ eda.amount_stats.std }}</td></tr>
+            </table>
+          </div>
+        </div>
+
+        {% if eda.missing_values > 0 %}
+        <div class="alert alert-warning mt-3 mb-0">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          {{ eda.missing_values }} missing value(s) detected. They will be handled during preprocessing.
+        </div>
+        {% else %}
+        <div class="alert alert-success mt-3 mb-0 py-2">
+          <i class="bi bi-check-circle me-1"></i> No missing values detected.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('train') }}" class="btn btn-success">
+        <i class="bi bi-cpu me-1"></i> Proceed to Training
+      </a>
+      <button onclick="document.getElementById('uploadForm').reset(); document.getElementById('selectedFileName').classList.add('d-none'); document.getElementById('uploadBtn').disabled=true;" class="btn btn-outline-secondary">
+        Upload Different File
+      </button>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const input = document.getElementById('fileInput');
+  const btn   = document.getElementById('uploadBtn');
+  const label = document.getElementById('selectedFileName');
+  const zone  = document.getElementById('dropZone');
+
+  input.addEventListener('change', () => {
+    if (input.files.length) {
+      label.textContent = input.files[0].name;
+      label.classList.remove('d-none');
+      btn.disabled = false;
+    }
+  });
+
+  ['dragover', 'dragenter'].forEach(e => zone.addEventListener(e, ev => { ev.preventDefault(); zone.classList.add('drop-active'); }));
+  ['dragleave', 'drop'].forEach(e => zone.addEventListener(e, () => zone.classList.remove('drop-active')));
+  zone.addEventListener('drop', ev => {
+    ev.preventDefault();
+    if (ev.dataTransfer.files.length) {
+      input.files = ev.dataTransfer.files;
+      input.dispatchEvent(new Event('change'));
+    }
+  });
+
+  document.getElementById('uploadForm').addEventListener('submit', () => {
+    showLoading('Uploading and validating dataset…');
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Case #{{ case.id }} — Fraud Detection Platform{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+  <a href="{{ url_for('cases') }}" class="btn btn-sm btn-outline-secondary me-3">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div>
+    <h3 class="fw-bold mb-0">Case #{{ case.id }}</h3>
+    <p class="text-muted mb-0 small">Transaction: <strong>{{ case.transaction_ref }}</strong></p>
+  </div>
+  <div class="ms-auto d-flex gap-2">
+    <span class="badge fs-6 status-badge status-{{ case.status | lower | replace(' ', '-') }}">{{ case.status }}</span>
+    <span class="badge fs-6 priority-badge priority-{{ case.priority | lower }}">{{ case.priority }}</span>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Left column: case info + update forms -->
+  <div class="col-lg-7">
+
+    <!-- Case details card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-bold border-0 pt-3">
+        <i class="bi bi-info-circle me-2 text-primary"></i>Case Details
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <div class="text-muted small mb-1">Transaction Reference</div>
+            <div class="fw-semibold">{{ case.transaction_ref }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small mb-1">Assigned Owner</div>
+            <div class="fw-semibold">{{ case.assigned_owner or '— Unassigned —' }}</div>
+          </div>
+          <div class="col-sm-4">
+            <div class="text-muted small mb-1">Fraud Probability</div>
+            <div class="fw-bold fs-5
+              {% if case.fraud_probability >= 0.7 %}text-danger
+              {% elif case.fraud_probability >= 0.3 %}text-warning
+              {% else %}text-success{% endif %}">
+              {{ (case.fraud_probability * 100) | round(2) }}%
+            </div>
+          </div>
+          <div class="col-sm-4">
+            <div class="text-muted small mb-1">Predicted Label</div>
+            <span class="badge {% if case.predicted_label == 1 %}bg-danger{% else %}bg-success{% endif %} fs-6">
+              {% if case.predicted_label == 1 %}Fraud{% else %}Legitimate{% endif %}
+            </span>
+          </div>
+          <div class="col-sm-4">
+            <div class="text-muted small mb-1">Risk Level</div>
+            {% if case.fraud_probability >= 0.7 %}
+              <span class="badge bg-danger">High Risk</span>
+            {% elif case.fraud_probability >= 0.3 %}
+              <span class="badge bg-warning text-dark">Medium Risk</span>
+            {% else %}
+              <span class="badge bg-success">Low Risk</span>
+            {% endif %}
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small mb-1">Created</div>
+            <div class="small">{{ case.created_at.strftime('%Y-%m-%d %H:%M:%S') if case.created_at else '—' }}</div>
+          </div>
+          <div class="col-sm-6">
+            <div class="text-muted small mb-1">Last Updated</div>
+            <div class="small">{{ case.updated_at.strftime('%Y-%m-%d %H:%M:%S') if case.updated_at else '—' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notes card -->
+    <div class="card border-0 shadow-sm mb-4">
+      <div class="card-header bg-white fw-bold border-0 pt-3">
+        <i class="bi bi-journal-text me-2 text-secondary"></i>Notes
+      </div>
+      <div class="card-body">
+        {% if case.notes %}
+          <pre class="bg-light rounded p-3 small mb-3" style="white-space:pre-wrap;">{{ case.notes }}</pre>
+        {% else %}
+          <p class="text-muted small mb-3">No notes added yet.</p>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
+          <input type="hidden" name="action" value="add_note" />
+          <div class="mb-2">
+            <textarea name="note" class="form-control form-control-sm" rows="2"
+                      placeholder="Add a new note…" required></textarea>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-plus me-1"></i> Add Note
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Right column: actions -->
+  <div class="col-lg-5">
+
+    <!-- Update status -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold border-0 pt-3">
+        <i class="bi bi-arrow-repeat me-2 text-info"></i>Update Status
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
+          <input type="hidden" name="action" value="update_status" />
+          <div class="mb-2">
+            <select name="status" class="form-select form-select-sm">
+              {% for s in statuses %}
+              <option value="{{ s }}" {% if s == case.status %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2">
+            <input type="text" name="comment" class="form-control form-control-sm"
+                   placeholder="Optional comment…" />
+          </div>
+          <button type="submit" class="btn btn-sm btn-info text-white w-100">
+            <i class="bi bi-check2 me-1"></i> Update Status
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Update priority -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold border-0 pt-3">
+        <i class="bi bi-flag me-2 text-warning"></i>Update Priority
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
+          <input type="hidden" name="action" value="update_priority" />
+          <div class="mb-2">
+            <select name="priority" class="form-select form-select-sm">
+              {% for p in priorities %}
+              <option value="{{ p }}" {% if p == case.priority %}selected{% endif %}>{{ p }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <button type="submit" class="btn btn-sm btn-warning text-dark w-100">
+            <i class="bi bi-check2 me-1"></i> Update Priority
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Assign case -->
+    <div class="card border-0 shadow-sm mb-3">
+      <div class="card-header bg-white fw-semibold border-0 pt-3">
+        <i class="bi bi-person-check me-2 text-success"></i>Assign Case
+      </div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
+          <input type="hidden" name="action" value="assign" />
+          <div class="mb-2">
+            <input type="text" name="owner" class="form-control form-control-sm"
+                   value="{{ case.assigned_owner or '' }}"
+                   placeholder="Analyst name" required />
+          </div>
+          <div class="mb-2">
+            <input type="text" name="comment" class="form-control form-control-sm"
+                   placeholder="Reason / comment…" />
+          </div>
+          <button type="submit" class="btn btn-sm btn-success w-100">
+            <i class="bi bi-person-check me-1"></i> Assign
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Audit log -->
+<div class="card border-0 shadow-sm mt-2 mb-4">
+  <div class="card-header bg-white fw-bold border-0 pt-3">
+    <i class="bi bi-clock-history me-2 text-secondary"></i>Audit Trail
+  </div>
+  <div class="card-body">
+    {% if audit_logs %}
+    <div class="timeline">
+      {% for log in audit_logs %}
+      <div class="timeline-item d-flex gap-3 mb-3">
+        <div class="timeline-dot bg-primary mt-1"></div>
+        <div class="flex-grow-1">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="badge bg-secondary-subtle text-secondary me-1">{{ log.action }}</span>
+              {% if log.old_value and log.new_value %}
+                <span class="text-muted small">
+                  <span class="text-danger">{{ log.old_value }}</span>
+                  <i class="bi bi-arrow-right mx-1"></i>
+                  <span class="text-success">{{ log.new_value }}</span>
+                </span>
+              {% elif log.new_value %}
+                <span class="text-muted small">→ <strong>{{ log.new_value }}</strong></span>
+              {% endif %}
+            </div>
+            <span class="text-muted small">
+              {{ log.timestamp.strftime('%Y-%m-%d %H:%M') if log.timestamp else '' }}
+            </span>
+          </div>
+          {% if log.comment %}
+          <div class="text-muted small mt-1">{{ log.comment }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">No audit entries yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

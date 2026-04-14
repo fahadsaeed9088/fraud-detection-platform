@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Home — Fraud Detection Platform{% endblock %}
+
+{% block content %}
+<!-- Hero -->
+<div class="hero-section py-5 mb-4">
+  <div class="row align-items-center">
+    <div class="col-lg-8">
+      <h1 class="display-5 fw-bold mb-2">
+        <i class="bi bi-shield-exclamation text-danger me-2"></i>
+        Multi-Model Fraud Detection Platform
+      </h1>
+      <p class="lead text-muted mb-4">
+        Upload your credit card dataset, train four ML models simultaneously, compare
+        their performance, and manage fraud investigation cases — all in one place.
+      </p>
+      <div class="d-flex gap-2 flex-wrap">
+        <a href="{{ url_for('upload') }}" class="btn btn-danger btn-lg">
+          <i class="bi bi-cloud-upload me-1"></i> Upload Dataset
+        </a>
+        <a href="{{ url_for('train') }}" class="btn btn-outline-dark btn-lg">
+          <i class="bi bi-cpu me-1"></i> Train Models
+        </a>
+        {% if models_trained %}
+        <a href="{{ url_for('results') }}" class="btn btn-outline-secondary btn-lg">
+          <i class="bi bi-graph-up-arrow me-1"></i> View Results
+        </a>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-lg-4 d-none d-lg-flex justify-content-end">
+      <i class="bi bi-shield-check" style="font-size:9rem;color:#dee2e6;"></i>
+    </div>
+  </div>
+</div>
+
+<!-- Quick stats -->
+{% if stats %}
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="card stat-card text-center h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="stat-icon text-primary mb-2"><i class="bi bi-folder2-open fs-3"></i></div>
+        <div class="stat-value fs-2 fw-bold">{{ stats.total_cases }}</div>
+        <div class="text-muted small">Total Cases</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card stat-card text-center h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="stat-icon text-warning mb-2"><i class="bi bi-hourglass-split fs-3"></i></div>
+        <div class="stat-value fs-2 fw-bold">{{ stats.open_cases }}</div>
+        <div class="text-muted small">Open Cases</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card stat-card text-center h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="stat-icon text-danger mb-2"><i class="bi bi-exclamation-triangle fs-3"></i></div>
+        <div class="stat-value fs-2 fw-bold">{{ (stats.avg_fraud_probability * 100) | round(1) }}%</div>
+        <div class="text-muted small">Avg Fraud Probability</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="card stat-card text-center h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="stat-icon text-success mb-2"><i class="bi bi-check-circle fs-3"></i></div>
+        <div class="stat-value fs-2 fw-bold">
+          {{ stats.status_counts.get('Resolved', 0) + stats.status_counts.get('Closed', 0) }}
+        </div>
+        <div class="text-muted small">Resolved / Closed</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Feature navigation cards -->
+<h5 class="fw-semibold mb-3 text-secondary">Platform Modules</h5>
+<div class="row g-3 mb-5">
+
+  <div class="col-md-6 col-lg-4">
+    <a href="{{ url_for('upload') }}" class="text-decoration-none">
+      <div class="card feature-card h-100 border-0 shadow-sm {% if dataset_ready %}border-start border-success border-3{% endif %}">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-cloud-upload fs-4 text-primary me-3"></i>
+            <h6 class="fw-bold mb-0">Upload Dataset</h6>
+          </div>
+          <p class="text-muted small mb-1">Upload <code>creditcard.csv</code> and view exploratory data analysis.</p>
+          {% if dataset_ready %}<span class="badge bg-success-subtle text-success">Dataset ready</span>{% endif %}
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-lg-4">
+    <a href="{{ url_for('train') }}" class="text-decoration-none">
+      <div class="card feature-card h-100 border-0 shadow-sm {% if models_trained %}border-start border-success border-3{% endif %}">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-cpu fs-4 text-warning me-3"></i>
+            <h6 class="fw-bold mb-0">Train Models</h6>
+          </div>
+          <p class="text-muted small mb-1">Train Logistic Regression, Random Forest, XGBoost, and Neural Network with SMOTE.</p>
+          {% if models_trained %}<span class="badge bg-success-subtle text-success">Models trained</span>{% endif %}
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-lg-4">
+    <a href="{{ url_for('results') }}" class="text-decoration-none">
+      <div class="card feature-card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-graph-up-arrow fs-4 text-info me-3"></i>
+            <h6 class="fw-bold mb-0">Model Results</h6>
+          </div>
+          <p class="text-muted small mb-1">Compare Accuracy, Precision, Recall, F1-Score, and ROC-AUC across models.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-lg-4">
+    <a href="{{ url_for('dashboard') }}" class="text-decoration-none">
+      <div class="card feature-card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-speedometer2 fs-4 text-success me-3"></i>
+            <h6 class="fw-bold mb-0">Dashboard</h6>
+          </div>
+          <p class="text-muted small mb-1">Monitor fraud case statistics, priority distribution and model performance.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-lg-4">
+    <a href="{{ url_for('cases') }}" class="text-decoration-none">
+      <div class="card feature-card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-folder2-open fs-4 text-danger me-3"></i>
+            <h6 class="fw-bold mb-0">Case Workflow</h6>
+          </div>
+          <p class="text-muted small mb-1">Create, assign, escalate, resolve, and audit fraud investigation cases.</p>
+        </div>
+      </div>
+    </a>
+  </div>
+
+  <div class="col-md-6 col-lg-4">
+    <a href="/api/cases" target="_blank" class="text-decoration-none">
+      <div class="card feature-card h-100 border-0 shadow-sm">
+        <div class="card-body">
+          <div class="d-flex align-items-center mb-2">
+            <i class="bi bi-braces fs-4 text-secondary me-3"></i>
+            <h6 class="fw-bold mb-0">REST API</h6>
+          </div>
+          <p class="text-muted small mb-1">JSON API for cases, predictions, and dashboard statistics.</p>
+          <span class="badge bg-secondary-subtle text-secondary">GET /api/cases</span>
+        </div>
+      </div>
+    </a>
+  </div>
+
+</div>
+
+<!-- Quick start -->
+<div class="card border-0 shadow-sm bg-light mb-4">
+  <div class="card-body">
+    <h6 class="fw-bold mb-3"><i class="bi bi-lightning-charge-fill text-warning me-2"></i>Quick Start</h6>
+    <ol class="mb-0 text-muted small">
+      <li class="mb-1">Download <code>creditcard.csv</code> from <a href="https://www.kaggle.com/mlg-ulb/creditcardfraud" target="_blank">Kaggle</a>.</li>
+      <li class="mb-1">Go to <strong>Upload</strong> and upload the file.</li>
+      <li class="mb-1">Go to <strong>Train</strong> and click <em>Train All Models</em>.</li>
+      <li class="mb-1">Review performance metrics on the <strong>Results</strong> page.</li>
+      <li>Manage detected fraud cases in <strong>Cases</strong>.</li>
+    </ol>
+  </div>
+</div>
+{% endblock %}

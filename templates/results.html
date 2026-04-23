@@ -1,106 +1,347 @@
 {% extends "base.html" %}
 {% block title %}Model Results — Fraud Detection Platform{% endblock %}
 
-{% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
-  <div>
-    <h3 class="fw-bold mb-1"><i class="bi bi-graph-up-arrow me-2 text-info"></i>Model Comparison Results</h3>
-    <p class="text-muted mb-0">Performance across all four classifiers on the held-out test set.</p>
-  </div>
-  <a href="{{ url_for('train') }}" class="btn btn-sm btn-outline-secondary">
-    <i class="bi bi-arrow-repeat me-1"></i> Retrain
-  </a>
-</div>
+{% block head %}
+<style>
+/* ═══ PAGE HEADER ═══ */
+.page-header-results {
+  position: relative;
+  padding: 2.5rem 0 1.5rem;
+}
+.page-header-results::before {
+  content: '';
+  position: absolute;
+  top: -60%; left: -5%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(6,182,212,0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.page-title-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(6,182,212,0.15), rgba(34,211,238,0.08));
+  border: 1px solid rgba(6,182,212,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #22d3ee; flex-shrink: 0;
+}
 
-<!-- Best model highlight -->
+/* ═══ WINNER BANNER ═══ */
+.winner-banner {
+  background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(59,130,246,0.06));
+  border: 1px solid rgba(16,185,129,0.2);
+  border-radius: 1rem;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+.winner-trophy {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(251,191,36,0.08));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem;
+  color: #fbbf24;
+  flex-shrink: 0;
+  animation: trophy-glow 3s ease-in-out infinite;
+}
+@keyframes trophy-glow {
+  0%, 100% { box-shadow: 0 0 15px rgba(245,158,11,0.2); }
+  50%      { box-shadow: 0 0 30px rgba(245,158,11,0.4); }
+}
+.winner-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.3rem 0.75rem;
+  border-radius: 2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+/* ═══ METRICS TABLE ═══ */
+.metrics-table-wrap {
+  background: rgba(30,41,59,0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.metrics-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-main);
+}
+.metrics-table thead {
+  background: rgba(255,255,255,0.04);
+}
+.metrics-table th {
+  padding: 0.85rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #64748b;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  white-space: nowrap;
+}
+.metrics-table td {
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+.metrics-table tbody tr {
+  transition: all 0.2s ease;
+}
+.metrics-table tbody tr:hover {
+  background: rgba(59,130,246,0.04);
+}
+.metrics-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.metrics-table tbody tr.best-row {
+  background: rgba(16,185,129,0.06);
+}
+.metrics-table tbody tr.best-row:hover {
+  background: rgba(16,185,129,0.1);
+}
+
+/* Metric cell with bar */
+.metric-cell {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+.metric-bar {
+  width: 50px;
+  height: 6px;
+  border-radius: 1rem;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.metric-bar .fill {
+  height: 100%;
+  border-radius: 1rem;
+}
+
+/* ═══ CHART CARDS ═══ */
+.chart-card {
+  background: rgba(30,41,59,0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 1rem;
+  overflow: hidden;
+  height: 100%;
+}
+.chart-card-header {
+  padding: 1rem 1.25rem 0;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.chart-card-body {
+  padding: 0.75rem 1rem 1rem;
+}
+
+/* ═══ SECTION LABEL ═══ */
+.section-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: #64748b;
+  margin-bottom: 1rem;
+}
+
+/* ═══ EDA STAT CARDS ═══ */
+.eda-mini {
+  background: rgba(30,41,59,0.45);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 1rem;
+  padding: 1.25rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.eda-mini:hover {
+  border-color: rgba(96,165,250,0.2);
+  transform: translateY(-2px);
+}
+.eda-mini .val {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+.eda-mini .lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+}
+
+/* ═══ AUC BADGE ═══ */
+.auc-badge {
+  padding: 0.3rem 0.7rem;
+  border-radius: 2rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: inline-block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ PAGE HEADER ═══ -->
+<section class="page-header-results">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="page-title-icon">
+        <i class="bi bi-graph-up-arrow"></i>
+      </div>
+      <div>
+        <h3 class="fw-bold mb-0">Model Comparison Results</h3>
+        <p class="text-muted mb-0 small">Performance across all four classifiers on the held-out test set.</p>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="{{ url_for('train') }}" class="btn btn-sm btn-glass fw-semibold px-3">
+        <i class="bi bi-arrow-repeat me-1"></i>Retrain
+      </a>
+      <a href="{{ url_for('cases') }}" class="btn btn-sm btn-danger fw-semibold px-3">
+        <i class="bi bi-folder2-open me-1"></i>Cases
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ BEST MODEL BANNER ═══ -->
 {% if best_model %}
-<div class="alert alert-success d-flex align-items-center mb-4">
-  <i class="bi bi-trophy-fill fs-4 me-3 text-warning"></i>
-  <div>
-    <strong>Best Model (by ROC-AUC): {{ best_model }}</strong>
-    &mdash; ROC-AUC {{ (results[best_model].roc_auc * 100) | round(2) }}%,
-    F1-Score {{ (results[best_model].f1 * 100) | round(2) }}%
+<div class="winner-banner mb-4">
+  <div class="winner-trophy">
+    <i class="bi bi-trophy-fill"></i>
+  </div>
+  <div class="flex-grow-1">
+    <div class="fw-bold mb-1">
+      Best Model: <span class="text-success">{{ best_model }}</span>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      <span class="winner-metric" style="background:rgba(16,185,129,0.12); color:#34d399;">
+        <i class="bi bi-bullseye"></i> ROC-AUC {{ (results[best_model].roc_auc * 100) | round(2) }}%
+      </span>
+      <span class="winner-metric" style="background:rgba(59,130,246,0.12); color:#93c5fd;">
+        <i class="bi bi-bar-chart"></i> F1 {{ (results[best_model].f1 * 100) | round(2) }}%
+      </span>
+      <span class="winner-metric" style="background:rgba(139,92,246,0.12); color:#c4b5fd;">
+        <i class="bi bi-check-circle"></i> Accuracy {{ (results[best_model].accuracy * 100) | round(2) }}%
+      </span>
+    </div>
   </div>
 </div>
 {% endif %}
 
-<!-- Metric comparison table -->
-<div class="card border-0 shadow-sm mb-4">
-  <div class="card-header bg-white fw-bold border-0 pt-3">
-    <i class="bi bi-table me-2"></i>Metrics Table
-  </div>
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th>Model</th>
-            <th class="text-end">Accuracy</th>
-            <th class="text-end">Precision</th>
-            <th class="text-end">Recall</th>
-            <th class="text-end">F1-Score</th>
-            <th class="text-end">ROC-AUC</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for name, m in results.items() %}
-          <tr {% if name == best_model %}class="table-success fw-semibold"{% endif %}>
-            <td>
-              {{ name }}
-              {% if name == best_model %}<i class="bi bi-star-fill text-warning ms-1"></i>{% endif %}
-            </td>
-            <td class="text-end">{{ (m.accuracy * 100) | round(2) }}%</td>
-            <td class="text-end">{{ (m.precision * 100) | round(2) }}%</td>
-            <td class="text-end">{{ (m.recall * 100) | round(2) }}%</td>
-            <td class="text-end">{{ (m.f1 * 100) | round(2) }}%</td>
-            <td class="text-end">
-              <span class="badge
-                {% if m.roc_auc >= 0.95 %}bg-success
-                {% elif m.roc_auc >= 0.90 %}bg-primary
-                {% elif m.roc_auc >= 0.80 %}bg-warning text-dark
-                {% else %}bg-danger{% endif %}">
-                {{ (m.roc_auc * 100) | round(2) }}%
-              </span>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+<!-- ═══ METRICS TABLE ═══ -->
+<div class="section-label"><i class="bi bi-table me-1"></i> Detailed Metrics</div>
+<div class="metrics-table-wrap mb-4">
+  <div class="table-responsive">
+    <table class="metrics-table">
+      <thead>
+        <tr>
+          <th class="ps-3">Model</th>
+          <th class="text-end">Accuracy</th>
+          <th class="text-end">Precision</th>
+          <th class="text-end">Recall</th>
+          <th class="text-end">F1-Score</th>
+          <th class="text-end pe-3">ROC-AUC</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for name, m in results.items() %}
+        <tr{% if name == best_model %} class="best-row"{% endif %}>
+          <td class="ps-3 fw-semibold">
+            {{ name }}
+            {% if name == best_model %}<i class="bi bi-star-fill text-warning ms-1" title="Best Model"></i>{% endif %}
+          </td>
+          {% set acc = (m.accuracy * 100) | round(1) %}
+          <td class="text-end">
+            <div class="metric-cell">
+              <span>{{ acc }}%</span>
+              <div class="metric-bar"><div class="fill" style="width:{{ acc }}%; background:#3b82f6;"></div></div>
+            </div>
+          </td>
+          {% set prec = (m.precision * 100) | round(1) %}
+          <td class="text-end">
+            <div class="metric-cell">
+              <span>{{ prec }}%</span>
+              <div class="metric-bar"><div class="fill" style="width:{{ prec }}%; background:#06b6d4;"></div></div>
+            </div>
+          </td>
+          {% set rec = (m.recall * 100) | round(1) %}
+          <td class="text-end">
+            <div class="metric-cell">
+              <span>{{ rec }}%</span>
+              <div class="metric-bar"><div class="fill" style="width:{{ rec }}%; background:#f59e0b;"></div></div>
+            </div>
+          </td>
+          {% set f1 = (m.f1 * 100) | round(1) %}
+          <td class="text-end">
+            <div class="metric-cell">
+              <span>{{ f1 }}%</span>
+              <div class="metric-bar"><div class="fill" style="width:{{ f1 }}%; background:#8b5cf6;"></div></div>
+            </div>
+          </td>
+          <td class="text-end pe-3">
+            <span class="auc-badge
+              {% if m.roc_auc >= 0.95 %}" style="background:rgba(16,185,129,0.15); color:#34d399;
+              {% elif m.roc_auc >= 0.90 %}" style="background:rgba(59,130,246,0.15); color:#93c5fd;
+              {% elif m.roc_auc >= 0.80 %}" style="background:rgba(245,158,11,0.15); color:#fbbf24;
+              {% else %}" style="background:rgba(239,68,68,0.15); color:#f87171;
+              {% endif %}">
+              {{ (m.roc_auc * 100) | round(2) }}%
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
 
-<!-- Bar chart + Radar chart -->
+<!-- ═══ CHARTS: Bar + Radar ═══ -->
+<div class="section-label"><i class="bi bi-bar-chart-fill me-1"></i> Visual Comparison</div>
 <div class="row g-4 mb-4">
   <div class="col-lg-7">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white fw-bold border-0 pt-3">
-        <i class="bi bi-bar-chart me-2 text-primary"></i>ROC-AUC &amp; F1-Score Comparison
+    <div class="chart-card">
+      <div class="chart-card-header">
+        <i class="bi bi-bar-chart me-2 text-primary"></i>ROC-AUC &amp; F1-Score
       </div>
-      <div class="card-body">
+      <div class="chart-card-body">
         <div id="comparisonChart"></div>
       </div>
     </div>
   </div>
   <div class="col-lg-5">
-    <div class="card border-0 shadow-sm h-100">
-      <div class="card-header bg-white fw-bold border-0 pt-3">
+    <div class="chart-card">
+      <div class="chart-card-header">
         <i class="bi bi-bullseye me-2 text-danger"></i>Metrics Radar
       </div>
-      <div class="card-body">
+      <div class="chart-card-body">
         <div id="radarChart"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Confusion matrices -->
-<h5 class="fw-semibold mb-3 text-secondary">Confusion Matrices</h5>
+<!-- ═══ CONFUSION MATRICES ═══ -->
+<div class="section-label"><i class="bi bi-grid-3x3-gap me-1"></i> Confusion Matrices</div>
 <div class="row g-4 mb-4">
   {% for model_name, cm_json in cm_charts.items() %}
   <div class="col-md-6 col-xl-3">
-    <div class="card border-0 shadow-sm">
-      <div class="card-body">
+    <div class="chart-card">
+      <div class="chart-card-body pt-3">
         <div id="cm_{{ loop.index }}"></div>
       </div>
     </div>
@@ -108,34 +349,31 @@
   {% endfor %}
 </div>
 
-<!-- Dataset EDA summary (if available) -->
+<!-- ═══ DATASET SUMMARY ═══ -->
 {% if eda %}
-<div class="card border-0 shadow-sm mb-4 bg-light">
-  <div class="card-header bg-transparent fw-bold border-0 pt-3">
-    <i class="bi bi-info-circle me-2 text-muted"></i>Dataset Used
+<div class="section-label"><i class="bi bi-database me-1"></i> Dataset Used</div>
+<div class="row g-3 mb-4">
+  <div class="col-4">
+    <div class="eda-mini">
+      <div class="val text-primary">{{ "{:,}".format(eda.n_rows) }}</div>
+      <div class="lbl">Total Rows</div>
+    </div>
   </div>
-  <div class="card-body">
-    <div class="row text-center">
-      <div class="col-4">
-        <div class="fw-bold fs-5">{{ "{:,}".format(eda.n_rows) }}</div>
-        <div class="small text-muted">Total Rows</div>
-      </div>
-      <div class="col-4">
-        <div class="fw-bold fs-5 text-danger">{{ "{:,}".format(eda.class_distribution.get('1', 0)) }}</div>
-        <div class="small text-muted">Fraud</div>
-      </div>
-      <div class="col-4">
-        <div class="fw-bold fs-5 text-success">{{ "{:,}".format(eda.class_distribution.get('0', 0)) }}</div>
-        <div class="small text-muted">Legitimate</div>
-      </div>
+  <div class="col-4">
+    <div class="eda-mini">
+      <div class="val text-danger">{{ "{:,}".format(eda.class_distribution.get('1', 0)) }}</div>
+      <div class="lbl">Fraud</div>
+    </div>
+  </div>
+  <div class="col-4">
+    <div class="eda-mini">
+      <div class="val text-success">{{ "{:,}".format(eda.class_distribution.get('0', 0)) }}</div>
+      <div class="lbl">Legitimate</div>
     </div>
   </div>
 </div>
 {% endif %}
 
-<a href="{{ url_for('cases') }}" class="btn btn-danger">
-  <i class="bi bi-folder2-open me-1"></i> Manage Fraud Cases
-</a>
 {% endblock %}
 
 {% block scripts %}

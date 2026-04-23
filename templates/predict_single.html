@@ -1,0 +1,343 @@
+{% extends "base.html" %}
+
+{% block title %}Single Predict — Fraud Detection Platform{% endblock %}
+
+{% block head %}
+<style>
+/* ═══ PAGE HEADER ═══ */
+.page-header-predict {
+  position: relative;
+  padding: 2.5rem 0 1.5rem;
+}
+.page-header-predict::before {
+  content: '';
+  position: absolute;
+  top: -60%; right: -10%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.page-title-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(96,165,250,0.08));
+  border: 1px solid rgba(59,130,246,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: #60a5fa;
+  flex-shrink: 0;
+}
+
+/* ═══ PREDICTION CARDS ═══ */
+.predict-card {
+  transition: all 0.3s ease;
+}
+.predict-card:hover {
+  border-color: rgba(96,165,250,0.25);
+}
+
+.result-glow-fraud {
+  filter: drop-shadow(0 0 25px rgba(239, 68, 68, 0.4));
+}
+.result-glow-legit {
+  filter: drop-shadow(0 0 25px rgba(16, 185, 129, 0.4));
+}
+
+.feature-input-area {
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.example-chip {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.example-chip:hover {
+  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+/* ═══ INFO PANELS ═══ */
+.info-box {
+  background: rgba(15, 23, 42, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 0.75rem;
+  padding: 1rem;
+}
+
+.probability-indicator {
+  height: 12px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.probability-fill {
+  height: 100%;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.ls-1 { letter-spacing: 1px; }
+.fw-black { font-weight: 900; }
+
+/* ═══ FORM CONTROLS ═══ */
+.case-input, .case-select {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+  border-radius: 0.75rem !important;
+  padding: 0.625rem 1rem !important;
+  font-size: 0.875rem !important;
+  transition: all 0.2s ease !important;
+}
+.case-input:focus, .case-select:focus {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15) !important;
+  outline: none;
+}
+.case-select option {
+  background-color: #0f172a;
+  color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ PAGE HEADER ═══ -->
+<section class="page-header-predict">
+  <div class="row align-items-center">
+    <div class="col">
+      <div class="d-flex align-items-center gap-3 mb-2">
+        <div class="page-title-icon">
+          <i class="bi bi-crosshair"></i>
+        </div>
+        <div>
+          <h3 class="fw-bold mb-0">Single Inference</h3>
+          <p class="text-muted mb-0 small">Test the model with a single transaction record to detect anomalies.</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-auto">
+      <div class="d-flex gap-2">
+        <a href="{{ url_for('cases') }}" class="btn btn-sm btn-glass px-3">
+          <i class="bi bi-folder2-open me-1"></i>View Cases
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="row g-4">
+  <!-- ═══ LEFT COLUMN: Input Form ═══ -->
+  <div class="col-lg-7">
+    <div class="card glass-panel predict-card h-100">
+      <div class="card-header bg-transparent border-0 pt-4 px-4">
+        <h5 class="fw-bold mb-0 d-flex align-items-center">
+          <i class="bi bi-input-cursor-text text-primary me-2"></i>Transaction Details
+        </h5>
+      </div>
+      <div class="card-body p-4">
+        <form method="POST" action="{{ url_for('predict_single') }}" id="predictForm">
+          <div class="row g-3 mb-4">
+            <div class="col-md-12">
+              <label for="model" class="form-label small text-muted text-uppercase fw-bold ls-1">Intelligence Model</label>
+              <select class="form-select case-select" id="model" name="model">
+                <option value="random_forest" {% if request.form.get('model') == 'random_forest' %}selected{% endif %}>Random Forest Classifier (Ensemble)</option>
+                <option value="xgboost" {% if request.form.get('model') == 'xgboost' %}selected{% endif %}>XGBoost Gradient Boosting</option>
+                <option value="logistic_regression" {% if request.form.get('model') == 'logistic_regression' %}selected{% endif %}>Logistic Regression (Linear)</option>
+                <option value="neural_network" {% if request.form.get('model') == 'neural_network' %}selected{% endif %}>Deep Neural Network (MLP)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+              <label for="features" class="form-label small text-muted text-uppercase fw-bold ls-1 mb-0">Input Vector (V1-V28, Time, Amount)</label>
+              <div class="d-flex gap-2">
+                <span class="example-chip" onclick="fillExample('legit')">Legitimate Example</span>
+                <span class="example-chip" onclick="fillExample('fraud')">Fraud Example</span>
+              </div>
+            </div>
+            <textarea class="form-control case-input feature-input-area" id="features" name="features" rows="6" 
+                      placeholder="Enter 30 comma-separated values...">{{ features_str }}</textarea>
+            <div class="mt-2 d-flex align-items-start gap-2">
+              <i class="bi bi-info-circle text-info mt-1"></i>
+              <small class="text-muted">
+                The vector should contain exactly 30 numerical values. Order: <code class="text-info">Time</code>, <code class="text-info">V1-V28</code>, then <code class="text-info">Amount</code>.
+              </small>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-update w-100 py-3 mt-2" id="predictBtn">
+            <i class="bi bi-cpu-fill me-2"></i>Analyze Transaction
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ RIGHT COLUMN: Results & Info ═══ -->
+  <div class="col-lg-5">
+    {% if prediction %}
+      <div class="card glass-panel predict-card h-100">
+        <div class="card-header bg-transparent border-0 pt-4 px-4 text-center">
+          <h5 class="fw-bold mb-0">Analysis Result</h5>
+        </div>
+        <div class="card-body p-4 text-center d-flex flex-column justify-content-center">
+          {% if prediction.is_fraud %}
+            <div class="mb-4">
+              <div class="result-glow-fraud">
+                <i class="bi bi-exclamation-triangle-fill text-danger" style="font-size: 5rem;"></i>
+              </div>
+            </div>
+            <h2 class="fw-black text-danger mb-1">FRAUD DETECTED</h2>
+            <p class="text-muted mb-4">High probability anomaly identified in transaction flow.</p>
+            
+            <div class="info-box mb-4 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-muted">FRAUD PROBABILITY</span>
+                <span class="badge bg-danger">{{ (prediction.probability * 100) | round(2) }}%</span>
+              </div>
+              <div class="probability-indicator mb-3">
+                <div class="probability-fill bg-danger" style="width: {{ prediction.probability * 100 }}%"></div>
+              </div>
+              <p class="small text-muted mb-0">
+                <i class="bi bi-shield-slash me-1"></i> This transaction deviates significantly from normal patterns.
+              </p>
+            </div>
+          {% else %}
+            <div class="mb-4">
+              <div class="result-glow-legit">
+                <i class="bi bi-shield-check text-success" style="font-size: 5rem;"></i>
+              </div>
+            </div>
+            <h2 class="fw-black text-success mb-1">LEGITIMATE</h2>
+            <p class="text-muted mb-4">Transaction patterns align with standard historical behavior.</p>
+            
+            <div class="info-box mb-4 text-start">
+              <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-muted">CONFIDENCE LEVEL</span>
+                <span class="badge bg-success">{{ ((1 - prediction.probability) * 100) | round(2) }}%</span>
+              </div>
+              <div class="probability-indicator mb-3">
+                <div class="probability-fill bg-success" style="width: {{ (1 - prediction.probability) * 100 }}%"></div>
+              </div>
+              <p class="small text-muted mb-0">
+                <i class="bi bi-shield-fill-check me-1"></i> No immediate threats detected in this data vector.
+              </p>
+            </div>
+          {% endif %}
+
+          <div class="mt-auto">
+            <button class="btn btn-glass w-100 mb-3" type="button" data-bs-toggle="collapse" data-bs-target="#createCaseArea">
+              <i class="bi bi-plus-circle me-2"></i>Manage Investigation
+            </button>
+            
+            <div class="collapse" id="createCaseArea">
+              <form method="POST" action="{{ url_for('create_case') }}" class="text-start bg-dark bg-opacity-25 rounded p-3 border border-secondary border-opacity-25">
+                <h6 class="fw-bold mb-3 small text-uppercase ls-1">Initialize Fraud Case</h6>
+                
+                <div class="mb-3">
+                  <label class="form-label small text-muted mb-1">Transaction Reference</label>
+                  <input type="text" name="transaction_ref" class="form-control case-input" 
+                         value="MANUAL-TXN-{{ range(10000, 99999) | random }}" required>
+                </div>
+                
+                <input type="hidden" name="fraud_probability" value="{{ prediction.probability }}">
+                <input type="hidden" name="predicted_label" value="{{ 1 if prediction.is_fraud else 0 }}">
+                
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">Priority</label>
+                    <select name="priority" class="form-select case-select">
+                      <option value="Critical" {% if prediction.probability >= 0.9 %}selected{% endif %}>Critical</option>
+                      <option value="High" {% if prediction.probability >= 0.7 and prediction.probability < 0.9 %}selected{% endif %}>High</option>
+                      <option value="Medium" {% if prediction.probability < 0.7 %}selected{% endif %}>Medium</option>
+                      <option value="Low">Low</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label small text-muted mb-1">Assignee</label>
+                    <select name="assigned_owner" class="form-select case-select">
+                      <option value="">Unassigned</option>
+                      {% for user in all_users %}
+                      <option value="{{ user.username }}" {% if user.username == current_user.username %}selected{% endif %}>
+                        {{ user.username }} ({{ user.role }})
+                      </option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                </div>
+                
+                <button type="submit" class="btn btn-sm btn-primary w-100 fw-bold">
+                  <i class="bi bi-folder-plus me-1"></i> Create Case File
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="card glass-panel h-100">
+        <div class="card-body p-5 text-center d-flex flex-column justify-content-center">
+          <div class="mb-4 opacity-25">
+            <i class="bi bi-cpu" style="font-size: 4rem;"></i>
+          </div>
+          <h5 class="fw-bold text-muted">Ready for Analysis</h5>
+          <p class="small text-muted mb-0">Enter the transaction features on the left and click "Analyze" to see the machine learning results here.</p>
+          
+          <div class="mt-4 pt-4 border-top border-secondary border-opacity-10">
+            <h6 class="small fw-bold text-uppercase text-muted ls-1 mb-3">System Status</h6>
+            <div class="d-flex flex-column gap-2 text-start">
+              <div class="d-flex justify-content-between small">
+                <span class="text-muted">Inference Engine:</span>
+                <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Active</span>
+              </div>
+              <div class="d-flex justify-content-between small">
+                <span class="text-muted">Model Registry:</span>
+                <span class="text-success"><i class="bi bi-check-circle-fill me-1"></i> Loaded</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+const EXAMPLES = {
+  legit: "125, -1.359807, -0.072781, 2.536347, 1.378155, -0.338321, 0.462388, 0.239599, 0.098698, 0.363787, 0.090794, -0.551600, -0.617801, -0.991390, -0.311169, 1.468177, -0.470401, 0.207971, 0.025791, 0.403993, 0.251412, -0.018307, 0.277838, -0.110474, 0.066928, 0.128539, -0.189115, 0.133558, -0.021053, 149.62",
+  fraud: "406, -2.312227, 1.951992, -1.609851, 3.997906, -0.522188, -1.426545, -2.537387, 1.391657, -2.770089, -2.772272, 3.202033, -2.899907, -0.595222, -4.289254, 0.389724, -1.140747, -2.830056, -0.016822, 0.416956, 0.126911, 0.517232, -0.035049, -0.465211, 0.320198, 0.044519, 0.177840, 0.261145, -0.143276, 0.00"
+};
+
+function fillExample(type) {
+  const textarea = document.getElementById('features');
+  textarea.value = EXAMPLES[type];
+  textarea.classList.add('is-valid');
+  setTimeout(() => textarea.classList.remove('is-valid'), 1000);
+}
+
+document.getElementById('predictForm').addEventListener('submit', function() {
+  const btn = document.getElementById('predictBtn');
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Processing Analysis...';
+  btn.classList.add('disabled');
+});
+</script>
+{% endblock %}
+

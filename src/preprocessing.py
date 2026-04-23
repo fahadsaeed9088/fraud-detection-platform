@@ -49,12 +49,21 @@ def generate_eda_summary(df: pd.DataFrame) -> dict:
     }
 
 
-def preprocess_data(df: pd.DataFrame):
+def preprocess_data(df: pd.DataFrame, models_dir: str = None):
     """Scale Amount and Time, then return feature matrix X and target y."""
     df = df.copy()
     scaler = StandardScaler()
-    df['Amount_scaled'] = scaler.fit_transform(df[['Amount']])
-    df['Time_scaled'] = scaler.fit_transform(df[['Time']])
+    
+    # Fit and transform both simultaneously so we can save a single scaler
+    scaled_cols = scaler.fit_transform(df[['Amount', 'Time']])
+    df['Amount_scaled'] = scaled_cols[:, 0]
+    df['Time_scaled'] = scaled_cols[:, 1]
+    
+    if models_dir:
+        import joblib
+        os.makedirs(models_dir, exist_ok=True)
+        joblib.dump(scaler, os.path.join(models_dir, 'scaler.pkl'))
+
     df.drop(columns=['Time', 'Amount'], inplace=True)
     X = df.drop(columns=['Class'])
     y = df['Class']
@@ -68,7 +77,14 @@ def split_data(X, y, test_size: float = 0.2, random_state: int = 42):
 
 def apply_smote(X_train, y_train, random_state: int = 42):
     """Apply SMOTE only on training data to avoid data leakage."""
-    smote = SMOTE(random_state=random_state)
+    min_class_count = pd.Series(y_train).value_counts().min()
+    k_neighbors = min(5, min_class_count - 1)
+    
+    if k_neighbors < 1:
+        logger.warning("Not enough minority samples for SMOTE (need at least 2). Returning unresampled data.")
+        return X_train, y_train
+        
+    smote = SMOTE(random_state=random_state, k_neighbors=k_neighbors)
     X_res, y_res = smote.fit_resample(X_train, y_train)
     before = pd.Series(y_train).value_counts().to_dict()
     after = pd.Series(y_res).value_counts().to_dict()
@@ -76,12 +92,12 @@ def apply_smote(X_train, y_train, random_state: int = 42):
     return X_res, y_res
 
 
-def run_full_pipeline(filepath: str, test_size: float = 0.2, random_state: int = 42) -> dict:
+def run_full_pipeline(filepath: str, test_size: float = 0.2, random_state: int = 42, models_dir: str = None) -> dict:
     """Execute the full preprocessing pipeline and return split data + EDA."""
     df = load_data(filepath)
     validate_columns(df)
     eda = generate_eda_summary(df)
-    X, y = preprocess_data(df)
+    X, y = preprocess_data(df, models_dir)
     X_train, X_test, y_train, y_test = split_data(X, y, test_size, random_state)
     X_train_res, y_train_res = apply_smote(X_train, y_train, random_state)
     return {

@@ -1,222 +1,531 @@
 {% extends "base.html" %}
 {% block title %}Case #{{ case.id }} — Fraud Detection Platform{% endblock %}
 
+{% block head %}
+<style>
+/* ═══ PAGE HEADER ═══ */
+.page-header-case {
+  position: relative;
+  padding: 2.5rem 0 1.5rem;
+}
+.page-header-case::before {
+  content: '';
+  position: absolute;
+  top: -60%; left: -5%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.page-title-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(96, 165, 250, 0.08));
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #60a5fa; flex-shrink: 0;
+}
+
+.case-id-badge {
+  font-family: 'Courier New', monospace;
+  background: rgba(59, 130, 246, 0.12);
+  padding: 0.25rem 0.75rem;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+/* ═══ INFO CARDS ═══ */
+.case-card {
+  background: rgba(30, 41, 59, 0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1.25rem;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.case-card-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 1.25rem;
+  padding: 1.5rem;
+}
+.detail-item .lbl {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #64748b;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+}
+.detail-item .val {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+/* ═══ PROBABILITY DISPLAY ═══ */
+.risk-meter-wrap {
+  padding: 1.5rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 1rem;
+  margin: 0 1.5rem 1.5rem;
+}
+.risk-meter-bar {
+  height: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  overflow: hidden;
+  margin: 0.75rem 0;
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+.risk-meter-fill {
+  height: 100%;
+  border-radius: 20px;
+  transition: width 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ═══ ACTION PANELS ═══ */
+.action-panel {
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+}
+.action-panel:last-child { border-bottom: none; }
+
+/* ═══ TIMELINE / AUDIT TRAIL ═══ */
+.timeline-wrap {
+  position: relative;
+  padding: 1.5rem;
+}
+.timeline-wrap::before {
+  content: '';
+  position: absolute;
+  left: 2.25rem;
+  top: 1.5rem;
+  bottom: 1.5rem;
+  width: 2px;
+  background: linear-gradient(to bottom, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.05));
+}
+.timeline-node {
+  position: relative;
+  padding-left: 3.5rem;
+  padding-bottom: 2rem;
+}
+.timeline-node:last-child { padding-bottom: 0; }
+.timeline-icon {
+  position: absolute;
+  left: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1e293b;
+  border: 2px solid #334155;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  z-index: 2;
+  transition: all 0.3s ease;
+}
+.timeline-node:hover .timeline-icon {
+  border-color: #60a5fa;
+  box-shadow: 0 0 15px rgba(96, 165, 250, 0.3);
+}
+.timeline-content {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0.85rem;
+  padding: 1rem;
+}
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+.timeline-action {
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.timeline-date {
+  font-size: 0.72rem;
+  color: #64748b;
+}
+.timeline-body {
+  font-size: 0.88rem;
+}
+.change-arrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.val-old { color: #f87171; text-decoration: line-through; opacity: 0.7; font-size: 0.8rem; }
+.val-new { color: #34d399; font-weight: 700; }
+.timeline-comment {
+  margin-top: 0.65rem;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.15);
+  border-left: 3px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0.25rem 0.5rem 0.5rem 0.25rem;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+/* ═══ FORM CONTROLS ═══ */
+.case-input, .case-select {
+  background: rgba(15, 23, 42, 0.6) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: #f8fafc !important;
+  border-radius: 0.75rem !important;
+  padding: 0.625rem 1rem !important;
+  font-size: 0.875rem !important;
+  transition: all 0.2s ease !important;
+}
+.case-input:focus, .case-select:focus {
+  background: rgba(15, 23, 42, 0.8) !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.15) !important;
+  outline: none;
+}
+.case-select option {
+  background-color: #0f172a;
+  color: white;
+}
+.btn-update {
+  border-radius: 0.75rem;
+  padding: 0.625rem 1.25rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.75rem;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.btn-update:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+  box-shadow: 0 8px 20px -5px rgba(0, 0, 0, 0.4);
+}
+
+/* ═══ NOTES ═══ */
+.notes-box {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  max-height: 250px;
+  overflow-y: auto;
+  font-size: 0.9rem;
+  line-height: 1.6;
+  color: #cbd5e1;
+  margin-bottom: 1rem;
+  border-left: 4px solid #3b82f6;
+}
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="d-flex align-items-center mb-4">
-  <a href="{{ url_for('cases') }}" class="btn btn-sm btn-outline-secondary me-3">
-    <i class="bi bi-arrow-left"></i>
-  </a>
-  <div>
-    <h3 class="fw-bold mb-0">Case #{{ case.id }}</h3>
-    <p class="text-muted mb-0 small">Transaction: <strong>{{ case.transaction_ref }}</strong></p>
+
+<!-- ═══ PAGE HEADER ═══ -->
+<section class="page-header-case">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <a href="{{ url_for('cases') }}" class="btn btn-glass p-2" title="Back to Cases">
+        <i class="bi bi-arrow-left fs-5"></i>
+      </a>
+      <div class="page-title-icon">
+        <i class="bi bi-shield-shaded"></i>
+      </div>
+      <div>
+        <div class="d-flex align-items-center gap-2 mb-1">
+          <h3 class="fw-bold mb-0">Case Investigation</h3>
+          <span class="case-id-badge">#{{ case.id }}</span>
+        </div>
+        <p class="text-muted mb-0 small">Transaction: <code class="text-info fw-bold">{{ case.transaction_ref }}</code></p>
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <span class="status-badge status-{{ case.status | lower | replace(' ', '-') }} px-3 py-2">
+        <i class="bi 
+          {% if case.status == 'New' %}bi-circle
+          {% elif case.status == 'In Review' %}bi-arrow-repeat
+          {% elif case.status == 'Escalated' %}bi-arrow-up-circle
+          {% elif case.status == 'Resolved' %}bi-check-circle
+          {% else %}bi-x-circle{% endif %} me-2"></i>
+        {{ case.status }}
+      </span>
+      <span class="status-badge priority-{{ case.priority | lower }} px-3 py-2">
+        <i class="bi bi-flag-fill me-2"></i>
+        {{ case.priority }}
+      </span>
+    </div>
   </div>
-  <div class="ms-auto d-flex gap-2">
-    <span class="badge fs-6 status-badge status-{{ case.status | lower | replace(' ', '-') }}">{{ case.status }}</span>
-    <span class="badge fs-6 priority-badge priority-{{ case.priority | lower }}">{{ case.priority }}</span>
-  </div>
-</div>
+</section>
 
 <div class="row g-4">
-
-  <!-- Left column: case info + update forms -->
+  <!-- ═══ LEFT COLUMN: CASE DETAILS & NOTES ═══ -->
   <div class="col-lg-7">
-
-    <!-- Case details card -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white fw-bold border-0 pt-3">
-        <i class="bi bi-info-circle me-2 text-primary"></i>Case Details
+    
+    <!-- Information Panel -->
+    <div class="case-card">
+      <div class="case-card-header">
+        <i class="bi bi-info-circle text-primary"></i>Primary Information
       </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-sm-6">
-            <div class="text-muted small mb-1">Transaction Reference</div>
-            <div class="fw-semibold">{{ case.transaction_ref }}</div>
-          </div>
-          <div class="col-sm-6">
-            <div class="text-muted small mb-1">Assigned Owner</div>
-            <div class="fw-semibold">{{ case.assigned_owner or '— Unassigned —' }}</div>
-          </div>
-          <div class="col-sm-4">
-            <div class="text-muted small mb-1">Fraud Probability</div>
-            <div class="fw-bold fs-5
-              {% if case.fraud_probability >= 0.7 %}text-danger
-              {% elif case.fraud_probability >= 0.3 %}text-warning
-              {% else %}text-success{% endif %}">
-              {{ (case.fraud_probability * 100) | round(2) }}%
-            </div>
-          </div>
-          <div class="col-sm-4">
-            <div class="text-muted small mb-1">Predicted Label</div>
-            <span class="badge {% if case.predicted_label == 1 %}bg-danger{% else %}bg-success{% endif %} fs-6">
-              {% if case.predicted_label == 1 %}Fraud{% else %}Legitimate{% endif %}
-            </span>
-          </div>
-          <div class="col-sm-4">
-            <div class="text-muted small mb-1">Risk Level</div>
-            {% if case.fraud_probability >= 0.7 %}
-              <span class="badge bg-danger">High Risk</span>
-            {% elif case.fraud_probability >= 0.3 %}
-              <span class="badge bg-warning text-dark">Medium Risk</span>
+      <div class="detail-grid">
+        <div class="detail-item">
+          <div class="lbl">Assigned To</div>
+          <div class="val">
+            {% if case.assigned_owner %}
+              <span class="text-success"><i class="bi bi-person-check me-1"></i>{{ case.assigned_owner }}</span>
             {% else %}
-              <span class="badge bg-success">Low Risk</span>
+              <span class="text-muted italic">Unassigned</span>
             {% endif %}
           </div>
-          <div class="col-sm-6">
-            <div class="text-muted small mb-1">Created</div>
-            <div class="small">{{ case.created_at.strftime('%Y-%m-%d %H:%M:%S') if case.created_at else '—' }}</div>
+        </div>
+        <div class="detail-item">
+          <div class="lbl">Created On</div>
+          <div class="val small">{{ case.created_at.strftime('%b %d, %Y') if case.created_at else '—' }}</div>
+        </div>
+        <div class="detail-item">
+          <div class="lbl">Last Update</div>
+          <div class="val small">{{ case.updated_at.strftime('%H:%M • %b %d') if case.updated_at else '—' }}</div>
+        </div>
+      </div>
+
+      <!-- Risk Meter -->
+      <div class="risk-meter-wrap">
+        <div class="d-flex justify-content-between align-items-end">
+          <div class="lbl text-uppercase small fw-bold text-muted mb-0">Fraud Probability</div>
+          <div class="h4 fw-black mb-0 {% if case.fraud_probability >= 0.7 %}text-danger{% elif case.fraud_probability >= 0.3 %}text-warning{% else %}text-success{% endif %}">
+            {{ (case.fraud_probability * 100) | round(2) }}%
           </div>
-          <div class="col-sm-6">
-            <div class="text-muted small mb-1">Last Updated</div>
-            <div class="small">{{ case.updated_at.strftime('%Y-%m-%d %H:%M:%S') if case.updated_at else '—' }}</div>
+        </div>
+        <div class="risk-meter-bar">
+          <div class="risk-meter-fill 
+            {% if case.fraud_probability >= 0.7 %}bg-danger
+            {% elif case.fraud_probability >= 0.3 %}bg-warning
+            {% else %}bg-success{% endif %}"
+            style="width: {{ case.fraud_probability * 100 }}%"></div>
+        </div>
+        <div class="d-flex justify-content-between small text-muted mt-1">
+          <span>Safe</span>
+          <span>Moderate</span>
+          <span>Critical</span>
+        </div>
+      </div>
+      
+      <div class="detail-grid pt-0">
+        <div class="detail-item text-center p-3 rounded" style="background:rgba(255,255,255,0.03);">
+          <div class="lbl">Model Prediction</div>
+          <div class="val">
+            {% if case.predicted_label == 1 %}
+              <span class="badge bg-danger px-3">FRAUD</span>
+            {% else %}
+              <span class="badge bg-success px-3">LEGITIMATE</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="detail-item text-center p-3 rounded" style="background:rgba(255,255,255,0.03);">
+          <div class="lbl">Risk Classification</div>
+          <div class="val">
+            {% if case.fraud_probability >= 0.7 %}
+              <span class="text-danger fw-bold"><i class="bi bi-exclamation-triangle-fill me-1"></i>HIGH RISK</span>
+            {% elif case.fraud_probability >= 0.3 %}
+              <span class="text-warning fw-bold"><i class="bi bi-exclamation-circle-fill me-1"></i>MEDIUM RISK</span>
+            {% else %}
+              <span class="text-success fw-bold"><i class="bi bi-shield-check me-1"></i>LOW RISK</span>
+            {% endif %}
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Notes card -->
-    <div class="card border-0 shadow-sm mb-4">
-      <div class="card-header bg-white fw-bold border-0 pt-3">
-        <i class="bi bi-journal-text me-2 text-secondary"></i>Notes
+    <!-- Investigation Notes -->
+    <div class="case-card">
+      <div class="case-card-header">
+        <i class="bi bi-journal-text text-info"></i>Investigation Notes
       </div>
-      <div class="card-body">
+      <div class="card-body p-4">
         {% if case.notes %}
-          <pre class="bg-light rounded p-3 small mb-3" style="white-space:pre-wrap;">{{ case.notes }}</pre>
+          <div class="notes-box">{{ case.notes }}</div>
         {% else %}
-          <p class="text-muted small mb-3">No notes added yet.</p>
-        {% endif %}
-
-        <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
-          <input type="hidden" name="action" value="add_note" />
-          <div class="mb-2">
-            <textarea name="note" class="form-control form-control-sm" rows="2"
-                      placeholder="Add a new note…" required></textarea>
+          <div class="text-center py-4 opacity-50">
+            <i class="bi bi-chat-left-dots fs-3 mb-2 d-block"></i>
+            <p class="small mb-0">No investigation notes available yet.</p>
           </div>
-          <button type="submit" class="btn btn-sm btn-primary">
-            <i class="bi bi-plus me-1"></i> Add Note
-          </button>
+        {% endif %}
+        
+        <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}" class="mt-3">
+          <input type="hidden" name="action" value="add_note" />
+          <div class="mb-3">
+            <textarea name="note" class="form-control" rows="3" 
+                      placeholder="Enter findings, evidence, or next steps..." required></textarea>
+          </div>
+          <div class="text-end">
+            <button type="submit" class="btn btn-primary fw-bold px-4">
+              <i class="bi bi-plus-lg me-1"></i>Append Note
+            </button>
+          </div>
         </form>
       </div>
     </div>
-
   </div>
 
-  <!-- Right column: actions -->
+  <!-- ═══ RIGHT COLUMN: ACTIONS & ASSIGNMENT ═══ -->
   <div class="col-lg-5">
-
-    <!-- Update status -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-white fw-semibold border-0 pt-3">
-        <i class="bi bi-arrow-repeat me-2 text-info"></i>Update Status
+    
+    <!-- Case Controls -->
+    <div class="case-card">
+      <div class="case-card-header">
+        <i class="bi bi-gear-fill text-warning"></i>Operational Controls
       </div>
-      <div class="card-body">
+      
+      <!-- Status Update -->
+      <div class="action-panel">
+        <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Workflow Status</label>
         <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
           <input type="hidden" name="action" value="update_status" />
-          <div class="mb-2">
-            <select name="status" class="form-select form-select-sm">
+          <div class="mb-3">
+            <select name="status" class="form-select case-select">
               {% for s in statuses %}
               <option value="{{ s }}" {% if s == case.status %}selected{% endif %}>{{ s }}</option>
               {% endfor %}
             </select>
           </div>
-          <div class="mb-2">
-            <input type="text" name="comment" class="form-control form-control-sm"
-                   placeholder="Optional comment…" />
+          <div class="mb-3">
+            <input type="text" name="comment" class="form-control case-input" placeholder="Add status change reason (optional)">
           </div>
-          <button type="submit" class="btn btn-sm btn-info text-white w-100">
-            <i class="bi bi-check2 me-1"></i> Update Status
+          <button type="submit" class="btn btn-info text-white btn-update w-100">
+            <i class="bi bi-check2-circle me-1"></i>Apply Status Update
           </button>
         </form>
       </div>
-    </div>
 
-    <!-- Update priority -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-white fw-semibold border-0 pt-3">
-        <i class="bi bi-flag me-2 text-warning"></i>Update Priority
-      </div>
-      <div class="card-body">
+      <!-- Priority Update -->
+      <div class="action-panel">
+        <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Urgency Level</label>
         <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
           <input type="hidden" name="action" value="update_priority" />
-          <div class="mb-2">
-            <select name="priority" class="form-select form-select-sm">
+          <div class="d-flex gap-2">
+            <select name="priority" class="form-select case-select">
               {% for p in priorities %}
               <option value="{{ p }}" {% if p == case.priority %}selected{% endif %}>{{ p }}</option>
               {% endfor %}
             </select>
+            <button type="submit" class="btn btn-warning text-dark btn-update px-4">Update</button>
           </div>
-          <button type="submit" class="btn btn-sm btn-warning text-dark w-100">
-            <i class="bi bi-check2 me-1"></i> Update Priority
-          </button>
         </form>
       </div>
-    </div>
 
-    <!-- Assign case -->
-    <div class="card border-0 shadow-sm mb-3">
-      <div class="card-header bg-white fw-semibold border-0 pt-3">
-        <i class="bi bi-person-check me-2 text-success"></i>Assign Case
-      </div>
-      <div class="card-body">
+      <!-- Case Assignment -->
+      <div class="action-panel">
+        <label class="small fw-bold text-muted text-uppercase mb-2 d-block">Ownership Assignment</label>
+        
+        {% if current_user.role == 'admin' %}
         <form method="POST" action="{{ url_for('update_case', case_id=case.id) }}">
           <input type="hidden" name="action" value="assign" />
-          <div class="mb-2">
-            <input type="text" name="owner" class="form-control form-control-sm"
-                   value="{{ case.assigned_owner or '' }}"
-                   placeholder="Analyst name" required />
+          <div class="mb-3">
+            <select name="owner" class="form-select case-select" required>
+              <option value="">-- Choose Investigator --</option>
+              {% for user in all_users %}
+              <option value="{{ user.username }}" {% if user.username == case.assigned_owner %}selected{% endif %}>
+                {{ user.username }} ({{ user.role }})
+              </option>
+              {% endfor %}
+            </select>
           </div>
-          <div class="mb-2">
-            <input type="text" name="comment" class="form-control form-control-sm"
-                   placeholder="Reason / comment…" />
-          </div>
-          <button type="submit" class="btn btn-sm btn-success w-100">
-            <i class="bi bi-person-check me-1"></i> Assign
+          <button type="submit" class="btn btn-success btn-update w-100">
+            <i class="bi bi-person-check me-1"></i>Confirm Assignment
           </button>
         </form>
+        {% else %}
+        <div class="d-flex align-items-center p-3 rounded-3 bg-dark bg-opacity-25 border border-white border-opacity-10">
+          <div class="auth-icon-wrap sm me-3" style="width: 40px; height: 40px; min-width: 40px;">
+            <i class="bi bi-person-badge fs-5"></i>
+          </div>
+          <div>
+            <div class="small text-muted mb-0">Assigned To</div>
+            <div class="fw-bold text-white">
+              {% if case.assigned_owner %}
+                {{ case.assigned_owner }}
+              {% else %}
+                <span class="text-muted fw-normal italic">Unassigned</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        <p class="small text-muted mt-2 mb-0 italic">
+          <i class="bi bi-info-circle me-1"></i>Only Administrators can reassign cases.
+        </p>
+        {% endif %}
       </div>
     </div>
-
   </div>
 </div>
 
-<!-- Audit log -->
-<div class="card border-0 shadow-sm mt-2 mb-4">
-  <div class="card-header bg-white fw-bold border-0 pt-3">
-    <i class="bi bi-clock-history me-2 text-secondary"></i>Audit Trail
+<!-- ═══ AUDIT TRAIL TIMELINE ═══ -->
+<div class="case-card mt-2">
+  <div class="case-card-header">
+    <i class="bi bi-clock-history text-secondary"></i>Audit Trail & History
   </div>
-  <div class="card-body">
+  <div class="timeline-wrap">
     {% if audit_logs %}
-    <div class="timeline">
       {% for log in audit_logs %}
-      <div class="timeline-item d-flex gap-3 mb-3">
-        <div class="timeline-dot bg-primary mt-1"></div>
-        <div class="flex-grow-1">
-          <div class="d-flex justify-content-between align-items-start">
-            <div>
-              <span class="badge bg-secondary-subtle text-secondary me-1">{{ log.action }}</span>
-              {% if log.old_value and log.new_value %}
-                <span class="text-muted small">
-                  <span class="text-danger">{{ log.old_value }}</span>
-                  <i class="bi bi-arrow-right mx-1"></i>
-                  <span class="text-success">{{ log.new_value }}</span>
-                </span>
-              {% elif log.new_value %}
-                <span class="text-muted small">→ <strong>{{ log.new_value }}</strong></span>
-              {% endif %}
+      <div class="timeline-node">
+        <div class="timeline-icon" 
+             style="color: {% if log.action == 'status_update' %}#60a5fa{% elif log.action == 'priority_update' %}#fbbf24{% elif log.action == 'assignment' %}#34d399{% else %}#94a3b8{% endif %};">
+          <i class="bi 
+            {% if log.action == 'status_update' %}bi-arrow-repeat
+            {% elif log.action == 'priority_update' %}bi-flag
+            {% elif log.action == 'assignment' %}bi-person-check
+            {% elif log.action == 'note_added' %}bi-journal-plus
+            {% else %}bi-dot{% endif %}"></i>
+        </div>
+        <div class="timeline-content">
+          <div class="timeline-header">
+            <div class="timeline-action" style="color: {% if log.action == 'status_update' %}#60a5fa{% elif log.action == 'priority_update' %}#fbbf24{% elif log.action == 'assignment' %}#34d399{% else %}#94a3b8{% endif %};">
+              {{ log.action | replace('_', ' ') }}
             </div>
-            <span class="text-muted small">
-              {{ log.timestamp.strftime('%Y-%m-%d %H:%M') if log.timestamp else '' }}
-            </span>
+            <div class="timeline-date">{{ log.timestamp.strftime('%H:%M • %b %d, %Y') if log.timestamp else '' }}</div>
           </div>
-          {% if log.comment %}
-          <div class="text-muted small mt-1">{{ log.comment }}</div>
-          {% endif %}
+          <div class="timeline-body">
+            {% if log.old_value and log.new_value %}
+              <div class="change-arrow">
+                <span class="val-old">{{ log.old_value }}</span>
+                <i class="bi bi-arrow-right text-muted small"></i>
+                <span class="val-new">{{ log.new_value }}</span>
+              </div>
+            {% elif log.new_value %}
+              <span class="val-new">{{ log.new_value }}</span>
+            {% endif %}
+            
+            {% if log.comment %}
+              <div class="timeline-comment">
+                <i class="bi bi-quote me-1"></i>{{ log.comment }}
+              </div>
+            {% endif %}
+          </div>
         </div>
       </div>
       {% endfor %}
-    </div>
     {% else %}
-    <p class="text-muted mb-0">No audit entries yet.</p>
+      <div class="text-center py-5 opacity-50">
+        <i class="bi bi-list-task fs-2 mb-2 d-block"></i>
+        <p class="mb-0">No audit logs recorded for this case.</p>
+      </div>
     {% endif %}
   </div>
 </div>
+
 {% endblock %}

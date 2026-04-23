@@ -10,7 +10,8 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from src import case_manager
-from src.database import CaseAuditLog, FraudCase, ModelRun, db
+from src.database import CaseAuditLog, FraudCase, ModelRun, User, db
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 logging.basicConfig(
     level=logging.INFO,
@@ -22,6 +23,16 @@ logger = logging.getLogger(__name__)
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+    app.secret_key = 'super-secret-premium-key-for-masters'
+
+    login_manager = LoginManager()
+    login_manager.login_view = 'login'
+    login_manager.login_message_category = 'info'
+    login_manager.init_app(app)
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(User, int(user_id))
 
     # Ensure required directories exist at startup
     for d in [
@@ -35,7 +46,18 @@ def create_app(config_class=Config):
     db.init_app(app)
 
     with app.app_context():
-        db.create_all()
+        import sqlalchemy.exc
+        try:
+            db.create_all()
+            if not User.query.filter_by(username='admin').first():
+                admin = User(username='admin', role='admin')
+                admin.set_password('admin123')
+                db.session.add(admin)
+                db.session.commit()
+                logger.info("Default admin user created (admin/admin123)")
+        except sqlalchemy.exc.OperationalError as e:
+            if "already exists" not in str(e).lower():
+                raise
 
     # ── Helpers ────────────────────────────────────────────────────────────
 
@@ -74,6 +96,7 @@ def create_app(config_class=Config):
         )
 
     @app.route('/upload', methods=['GET', 'POST'])
+    @login_required
     def upload():
         if request.method == 'POST':
             if 'file' not in request.files:
@@ -115,6 +138,7 @@ def create_app(config_class=Config):
         return render_template('upload.html', eda=eda, uploaded=uploaded)
 
     @app.route('/train', methods=['GET', 'POST'])
+    @login_required
     def train():
         if request.method == 'POST':
             filepath = _dataset_path()
@@ -129,7 +153,8 @@ def create_app(config_class=Config):
                 from src.train_models import train_all_models
 
                 data = run_full_pipeline(filepath, app.config['TEST_SIZE'],
-                                        app.config['RANDOM_STATE'])
+                                        app.config['RANDOM_STATE'],
+                                        app.config['MODELS_DIR'])
                 models = train_all_models(
                     data['X_train'], data['y_train'],
                     random_state=app.config['RANDOM_STATE'],
@@ -241,6 +266,7 @@ def create_app(config_class=Config):
         )
 
     @app.route('/results')
+    @login_required
     def results():
         results_data, eda, best_model = _load_latest_results()
         if not results_data:
@@ -269,6 +295,7 @@ def create_app(config_class=Config):
         )
 
     @app.route('/dashboard')
+    @login_required
     def dashboard():
         from src.dashboard_utils import (generate_case_priority_chart,
                                          generate_case_status_chart,
@@ -282,6 +309,8 @@ def create_app(config_class=Config):
         results_data, _, best_model = _load_latest_results()
         comparison_chart = generate_model_comparison_chart(results_data) if results_data else None
 
+        recent_cases = FraudCase.query.order_by(FraudCase.created_at.desc()).limit(5).all()
+
         return render_template(
             'dashboard.html',
             stats=stats,
@@ -291,22 +320,36 @@ def create_app(config_class=Config):
             models_trained=models_exist(app.config['MODELS_DIR']),
             model_results=results_data,
             best_model=best_model,
+            recent_cases=recent_cases,
         )
 
     # ── Case management routes ──────────────────────────────────────────────
 
     @app.route('/cases')
+    @login_required
     def cases():
         status_filter = request.args.get('status', '')
         priority_filter = request.args.get('priority', '')
+        page = request.args.get('page', 1, type=int)
+        per_page = 10
 
         query = FraudCase.query
+        
+        if current_user.role != 'admin':
+            query = query.filter_by(assigned_owner=current_user.username)
+        
         if status_filter:
             query = query.filter_by(status=status_filter)
         if priority_filter:
             query = query.filter_by(priority=priority_filter)
 
-        cases_list = query.order_by(FraudCase.created_at.desc()).all()
+        total_count = query.count()
+        import math
+        total_pages = math.ceil(total_count / per_page) if total_count > 0 else 1
+        cases_list = query.order_by(FraudCase.created_at.desc()) \
+            .paginate(page=page, per_page=per_page, error_out=False).items
+        
+        all_users = User.query.all()
         return render_template(
             'cases.html',
             cases=cases_list,
@@ -314,26 +357,43 @@ def create_app(config_class=Config):
             priorities=case_manager.VALID_PRIORITIES,
             status_filter=status_filter,
             priority_filter=priority_filter,
+            current_page=page,
+            per_page=per_page,
+            total_count=total_count,
+            total_pages=total_pages,
+            all_users=all_users,
         )
 
     @app.route('/cases/<int:case_id>')
+    @login_required
     def case_detail(case_id):
         fraud_case = db.get_or_404(FraudCase, case_id)
+        
+        if current_user.role != 'admin' and fraud_case.assigned_owner != current_user.username:
+            flash('You can only view your assigned cases.', 'warning')
+            return redirect(url_for('cases'))
+        
         audit_logs = (
             CaseAuditLog.query
             .filter_by(case_id=case_id)
             .order_by(CaseAuditLog.timestamp.desc())
             .all()
         )
+        
+        all_users = User.query.all()
+        
         return render_template(
             'case_detail.html',
             case=fraud_case,
             audit_logs=audit_logs,
             statuses=case_manager.VALID_STATUSES,
             priorities=case_manager.VALID_PRIORITIES,
+            is_admin=current_user.role == 'admin',
+            all_users=all_users,
         )
 
     @app.route('/cases/create', methods=['POST'])
+    @login_required
     def create_case():
         try:
             fraud_case = case_manager.create_case(
@@ -351,6 +411,7 @@ def create_app(config_class=Config):
             return redirect(url_for('cases'))
 
     @app.route('/cases/update/<int:case_id>', methods=['POST'])
+    @login_required
     def update_case(case_id):
         action = request.form.get('action', '')
         try:
@@ -363,12 +424,15 @@ def create_app(config_class=Config):
                 flash('Status updated.', 'success')
 
             elif action == 'assign':
-                owner = request.form.get('owner', '').strip()
-                if owner:
-                    case_manager.assign_case(case_id, owner, request.form.get('comment') or None)
-                    flash('Case assigned.', 'success')
+                if current_user.role != 'admin':
+                    flash('Access Denied: Only administrators can assign cases.', 'danger')
                 else:
-                    flash('Owner name cannot be empty.', 'warning')
+                    owner = request.form.get('owner', '').strip()
+                    if owner:
+                        case_manager.assign_case(case_id, owner, request.form.get('comment') or None)
+                        flash('Case assigned.', 'success')
+                    else:
+                        flash('Owner name cannot be empty.', 'warning')
 
             elif action == 'add_note':
                 note = request.form.get('note', '').strip()
@@ -409,6 +473,7 @@ def create_app(config_class=Config):
     # ── API routes ──────────────────────────────────────────────────────────
 
     @app.route('/api/cases')
+    @login_required
     def api_cases():
         cases_list = FraudCase.query.order_by(FraudCase.created_at.desc()).all()
         return jsonify([c.to_dict() for c in cases_list])
@@ -435,8 +500,156 @@ def create_app(config_class=Config):
             return jsonify({'error': str(exc)}), 500
 
     @app.route('/api/dashboard/stats')
+    @login_required
     def api_dashboard_stats():
         return jsonify(case_manager.get_dashboard_stats())
+
+    # ── Auth & Single Inference Routes ──────────────────────────────────────
+
+    @app.route('/login', methods=['GET', 'POST'])
+    def login():
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard'))
+        if request.method == 'POST':
+            username = request.form.get('username')
+            password = request.form.get('password')
+            user = User.query.filter_by(username=username).first()
+            if user and user.check_password(password):
+                login_user(user)
+                flash('Welcome back!', 'success')
+                next_page = request.args.get('next')
+                return redirect(next_page or url_for('dashboard'))
+            flash('Invalid username or password.', 'danger')
+        return render_template('login.html')
+
+    @app.route('/signup', methods=['GET', 'POST'])
+    def signup():
+        if current_user.is_authenticated:
+            return redirect(url_for('dashboard'))
+        if request.method == 'POST':
+            username = request.form.get('username')
+            password = request.form.get('password')
+            confirm = request.form.get('confirm_password')
+            role = request.form.get('role', 'investigator')
+            department = request.form.get('department', '').strip() or None
+
+            if not username or not password:
+                flash('Username and password are required.', 'danger')
+                return redirect(url_for('signup'))
+            if password != confirm:
+                flash('Passwords do not match.', 'danger')
+                return redirect(url_for('signup'))
+            if User.query.filter_by(username=username).first():
+                flash('Username already exists.', 'danger')
+                return redirect(url_for('signup'))
+
+            user = User(username=username, role=role, department=department)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+            flash('Account created! Please login.', 'success')
+            return redirect(url_for('login'))
+        return render_template('signup.html')
+
+    @app.route('/logout')
+    @login_required
+    def logout():
+        logout_user()
+        flash('You have been logged out.', 'info')
+        return redirect(url_for('login'))
+
+    @app.route('/settings', methods=['GET', 'POST'])
+    @login_required
+    def settings():
+        if request.method == 'POST':
+            current_password = request.form.get('current_password')
+            new_password = request.form.get('new_password')
+            confirm_password = request.form.get('confirm_password')
+            
+            if not current_user.check_password(current_password):
+                flash('Current password is incorrect.', 'danger')
+            elif new_password != confirm_password:
+                flash('New passwords do not match.', 'danger')
+            elif len(new_password) < 6:
+                flash('Password must be at least 6 characters long.', 'warning')
+            else:
+                current_user.set_password(new_password)
+                db.session.commit()
+                flash('Password updated successfully!', 'success')
+                return redirect(url_for('settings'))
+                
+        return render_template('settings.html')
+
+    @app.route('/predict_single', methods=['GET', 'POST'])
+    @login_required
+    def predict_single():
+        from src.model_utils import models_exist
+        if not models_exist(app.config['MODELS_DIR']):
+            flash('Models are not trained yet. Please train them first.', 'warning')
+            return redirect(url_for('train'))
+
+        prediction = None
+        if request.method == 'POST':
+            try:
+                # Get the comma-separated string of features
+                features_str = request.form.get('features', '')
+                if not features_str:
+                    flash('Please provide feature values.', 'danger')
+                    return redirect(url_for('predict_single'))
+                
+                # Convert string to list of floats
+                import numpy as np
+                features_list = [float(x.strip()) for x in features_str.split(',') if x.strip()]
+                
+                # If they pasted 31 values (including Class), drop the last one
+                if len(features_list) == 31:
+                    features_list = features_list[:30]
+                elif len(features_list) != 30:
+                    flash(f'Expected 30 features, but got {len(features_list)}. Please provide Time, V1-V28, and Amount.', 'danger')
+                    return redirect(url_for('predict_single'))
+
+                # Input order is: Time (0), V1..V28 (1..28), Amount (29)
+                time_val = features_list[0]
+                v_features = features_list[1:29]
+                amount_val = features_list[29]
+
+                # Load scaler and scale Amount and Time
+                import joblib
+                import os
+                scaler_path = os.path.join(app.config['MODELS_DIR'], 'scaler.pkl')
+                if os.path.exists(scaler_path):
+                    scaler = joblib.load(scaler_path)
+                    scaled = scaler.transform([[amount_val, time_val]])
+                    amount_scaled = scaled[0][0]
+                    time_scaled = scaled[0][1]
+                else:
+                    # Fallback if scaler missing (though models might be inaccurate)
+                    amount_scaled = amount_val
+                    time_scaled = time_val
+                
+                # Model expects: V1..V28, Amount_scaled, Time_scaled
+                final_features = v_features + [amount_scaled, time_scaled]
+                features_arr = np.array(final_features).reshape(1, -1)
+
+                model_name = request.form.get('model', 'random_forest')
+                from src.model_utils import load_model
+                from src.predict import predict_transaction
+
+                model = load_model(model_name, app.config['MODELS_DIR'])
+                model_type = 'keras' if model_name == 'neural_network' else 'sklearn'
+                prediction = predict_transaction(model, features_arr, model_type)
+                
+                # Check prediction structure and adjust if necessary
+                if isinstance(prediction, list) and len(prediction) > 0:
+                    prediction = prediction[0]
+
+            except ValueError as ve:
+                flash(f'Value Error: {str(ve)}. Ensure all values are numerical.', 'danger')
+            except Exception as e:
+                flash(f'Prediction error: {str(e)}', 'danger')
+
+        all_users = User.query.all()
+        return render_template('predict_single.html', prediction=prediction, features_str=request.form.get('features', ''), all_users=all_users)
 
     # ── Error handlers ──────────────────────────────────────────────────────
 
@@ -455,4 +668,4 @@ def create_app(config_class=Config):
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host='0.0.0.0', port=7860)

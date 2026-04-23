@@ -1,173 +1,414 @@
 {% extends "base.html" %}
 {% block title %}Fraud Cases — Fraud Detection Platform{% endblock %}
 
-{% block content %}
-<div class="d-flex align-items-center justify-content-between mb-4">
-  <div>
-    <h3 class="fw-bold mb-1"><i class="bi bi-folder2-open me-2 text-danger"></i>Fraud Cases</h3>
-    <p class="text-muted mb-0">Manage and track all fraud investigation cases.</p>
-  </div>
-  <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createCaseModal">
-    <i class="bi bi-plus-lg me-1"></i> New Case
-  </button>
-</div>
+{% block head %}
+<style>
+/* ═══ PAGE HEADER ═══ */
+.page-header-cases {
+  position: relative;
+  padding: 2.5rem 0 1.5rem;
+}
+.page-header-cases::before {
+  content: '';
+  position: absolute;
+  top: -60%; right: -5%;
+  width: 400px; height: 400px;
+  background: radial-gradient(circle, rgba(239,68,68,0.1) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.page-title-icon {
+  width: 56px; height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(248,113,113,0.08));
+  border: 1px solid rgba(239,68,68,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.5rem; color: #f87171; flex-shrink: 0;
+}
 
-<!-- Filters -->
-<form method="GET" class="card border-0 shadow-sm mb-4">
-  <div class="card-body py-3">
-    <div class="row g-2 align-items-end">
-      <div class="col-sm-4 col-md-3">
-        <label class="form-label small fw-semibold mb-1">Status</label>
-        <select name="status" class="form-select form-select-sm">
-          <option value="">All Statuses</option>
-          {% for s in statuses %}
-          <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
-          {% endfor %}
-        </select>
+/* ═══ FILTER BAR ═══ */
+.filter-bar {
+  background: rgba(30,41,59,0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+/* ═══ TABLE STYLES ═══ */
+.cases-table-wrap {
+  background: rgba(30,41,59,0.45);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.cases-table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--text-main);
+}
+.cases-table thead {
+  background: rgba(255,255,255,0.04);
+}
+.cases-table th {
+  padding: 0.85rem 1rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #64748b;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  white-space: nowrap;
+}
+.cases-table td {
+  padding: 0.85rem 1rem;
+  font-size: 0.88rem;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+.cases-table tbody tr {
+  transition: all 0.2s ease;
+}
+.cases-table tbody tr:hover {
+  background: rgba(59,130,246,0.04);
+}
+.cases-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* Probability mini bar */
+.prob-bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.prob-bar {
+  width: 60px;
+  height: 6px;
+  border-radius: 1rem;
+  background: rgba(255,255,255,0.06);
+  overflow: hidden;
+}
+.prob-bar .fill {
+  height: 100%;
+  border-radius: 1rem;
+}
+.prob-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  min-width: 38px;
+}
+
+/* Action button */
+.btn-view {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59,130,246,0.1);
+  border: 1px solid rgba(59,130,246,0.2);
+  color: #60a5fa;
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+.btn-view:hover {
+  background: rgba(59,130,246,0.2);
+  color: #93c5fd;
+  transform: scale(1.1);
+}
+
+/* Ref link */
+.case-ref-link {
+  color: #93c5fd;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+}
+.case-ref-link:hover {
+  color: #bfdbfe;
+  text-decoration: underline;
+}
+
+/* ═══ PAGINATION ═══ */
+.pagination-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 0;
+}
+.pagination-info {
+  font-size: 0.82rem;
+  color: #64748b;
+}
+.pagination-info strong {
+  color: var(--text-main);
+}
+.pagination-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+.page-btn {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  background: rgba(30,41,59,0.5);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: var(--text-muted);
+}
+.page-btn:hover {
+  background: rgba(59,130,246,0.12);
+  border-color: rgba(59,130,246,0.3);
+  color: #93c5fd;
+}
+.page-btn.active {
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 15px rgba(59,130,246,0.3);
+}
+.page-btn.disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+/* ═══ EMPTY STATE ═══ */
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+.empty-icon {
+  width: 80px; height: 80px;
+  border-radius: 50%;
+  background: rgba(239,68,68,0.08);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1.5rem;
+  font-size: 2rem;
+  color: #f87171;
+}
+
+/* ═══ MODAL DARK ═══ */
+.modal-glass .modal-content {
+  background: var(--bg-dark);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 1.25rem;
+  box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- ═══ PAGE HEADER ═══ -->
+<section class="page-header-cases">
+  <div class="d-flex align-items-center justify-content-between flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+      <div class="page-title-icon">
+        <i class="bi bi-folder2-open"></i>
       </div>
-      <div class="col-sm-4 col-md-3">
-        <label class="form-label small fw-semibold mb-1">Priority</label>
-        <select name="priority" class="form-select form-select-sm">
-          <option value="">All Priorities</option>
-          {% for p in priorities %}
-          <option value="{{ p }}" {% if p == priority_filter %}selected{% endif %}>{{ p }}</option>
-          {% endfor %}
-        </select>
+      <div>
+        <h3 class="fw-bold mb-0">Fraud Cases</h3>
+        <p class="text-muted mb-0 small">Manage and track all fraud investigation cases.</p>
       </div>
-      <div class="col-sm-4 col-md-2">
-        <button type="submit" class="btn btn-sm btn-primary w-100">
-          <i class="bi bi-funnel me-1"></i> Filter
-        </button>
-      </div>
-      {% if status_filter or priority_filter %}
-      <div class="col-sm-4 col-md-2">
-        <a href="{{ url_for('cases') }}" class="btn btn-sm btn-outline-secondary w-100">
-          <i class="bi bi-x-circle me-1"></i> Clear
-        </a>
-      </div>
-      {% endif %}
     </div>
+    <button class="btn btn-danger fw-semibold px-3" data-bs-toggle="modal" data-bs-target="#createCaseModal">
+      <i class="bi bi-plus-lg me-1"></i> New Case
+    </button>
+  </div>
+</section>
+
+<!-- ═══ FILTER BAR ═══ -->
+<form method="GET" class="filter-bar mb-4">
+  <div class="row g-2 align-items-end">
+    <div class="col-sm-4 col-md-3">
+      <label class="form-label small fw-bold mb-1 text-muted">Status</label>
+      <select name="status" class="form-select form-select-sm">
+        <option value="">All Statuses</option>
+        {% for s in statuses %}
+        <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-4 col-md-3">
+      <label class="form-label small fw-bold mb-1 text-muted">Priority</label>
+      <select name="priority" class="form-select form-select-sm">
+        <option value="">All Priorities</option>
+        {% for p in priorities %}
+        <option value="{{ p }}" {% if p == priority_filter %}selected{% endif %}>{{ p }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-4 col-md-2">
+      <button type="submit" class="btn btn-sm btn-primary w-100 fw-semibold">
+        <i class="bi bi-funnel me-1"></i>Filter
+      </button>
+    </div>
+    {% if status_filter or priority_filter %}
+    <div class="col-sm-4 col-md-2">
+      <a href="{{ url_for('cases') }}" class="btn btn-sm btn-glass w-100">
+        <i class="bi bi-x-circle me-1"></i>Clear
+      </a>
+    </div>
+    {% endif %}
   </div>
 </form>
 
-<!-- Cases table -->
+<!-- ═══ CASES TABLE ═══ -->
 {% if cases %}
-<div class="card border-0 shadow-sm">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
-          <tr>
-            <th class="ps-3">#</th>
-            <th>Transaction Ref</th>
-            <th class="text-center">Fraud Prob.</th>
-            <th class="text-center">Risk</th>
-            <th class="text-center">Priority</th>
-            <th class="text-center">Status</th>
-            <th>Assigned To</th>
-            <th>Created</th>
-            <th class="text-center pe-3">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for case in cases %}
-          <tr>
-            <td class="ps-3 text-muted small">{{ case.id }}</td>
-            <td class="fw-semibold">
-              <a href="{{ url_for('case_detail', case_id=case.id) }}" class="text-decoration-none">
-                {{ case.transaction_ref }}
-              </a>
-            </td>
-            <td class="text-center">
-              <div class="progress mx-auto" style="width:80px;height:10px;" title="{{ (case.fraud_probability * 100)|round(1) }}%">
-                <div class="progress-bar
-                  {% if case.fraud_probability >= 0.7 %}bg-danger
-                  {% elif case.fraud_probability >= 0.3 %}bg-warning
-                  {% else %}bg-success{% endif %}"
-                  style="width:{{ (case.fraud_probability * 100)|round(0) }}%">
-                </div>
+<div class="cases-table-wrap mb-3">
+  <div class="table-responsive">
+    <table class="cases-table">
+      <thead>
+        <tr>
+          <th class="ps-3">#</th>
+          <th>Transaction Ref</th>
+          <th>Fraud Prob.</th>
+          <th>Risk</th>
+          <th>Priority</th>
+          <th>Status</th>
+          <th>Assigned To</th>
+          <th>Created</th>
+          <th class="text-center pe-3">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for case in cases %}
+        <tr>
+          <td class="ps-3 text-muted small">{{ case.id }}</td>
+          <td>
+            <a href="{{ url_for('case_detail', case_id=case.id) }}" class="case-ref-link">
+              {{ case.transaction_ref }}
+            </a>
+          </td>
+          <td>
+            {% set prob = (case.fraud_probability * 100) | round(1) %}
+            <div class="prob-bar-wrap">
+              <div class="prob-bar">
+                <div class="fill" style="width:{{ prob }}%; background:{% if prob >= 70 %}#ef4444{% elif prob >= 30 %}#f59e0b{% else %}#10b981{% endif %};"></div>
               </div>
-              <small class="text-muted">{{ (case.fraud_probability * 100)|round(1) }}%</small>
-            </td>
-            <td class="text-center">
-              {% if case.fraud_probability >= 0.7 %}
-                <span class="badge bg-danger">High</span>
-              {% elif case.fraud_probability >= 0.3 %}
-                <span class="badge bg-warning text-dark">Medium</span>
-              {% else %}
-                <span class="badge bg-success">Low</span>
-              {% endif %}
-            </td>
-            <td class="text-center">
-              <span class="badge priority-badge priority-{{ case.priority | lower }}">{{ case.priority }}</span>
-            </td>
-            <td class="text-center">
-              <span class="badge status-badge status-{{ case.status | lower | replace(' ', '-') }}">{{ case.status }}</span>
-            </td>
-            <td class="text-muted small">{{ case.assigned_owner or '—' }}</td>
-            <td class="text-muted small">{{ case.created_at.strftime('%Y-%m-%d %H:%M') if case.created_at else '—' }}</td>
-            <td class="text-center pe-3">
-              <a href="{{ url_for('case_detail', case_id=case.id) }}"
-                 class="btn btn-sm btn-outline-primary">
-                <i class="bi bi-eye"></i>
-              </a>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+              <span class="prob-value {% if prob >= 70 %}text-danger{% elif prob >= 30 %}text-warning{% else %}text-success{% endif %}">{{ prob }}%</span>
+            </div>
+          </td>
+          <td>
+            {% if case.fraud_probability >= 0.7 %}
+              <span class="badge bg-danger">High</span>
+            {% elif case.fraud_probability >= 0.3 %}
+              <span class="badge bg-warning text-dark">Medium</span>
+            {% else %}
+              <span class="badge bg-success">Low</span>
+            {% endif %}
+          </td>
+          <td><span class="badge priority-badge priority-{{ case.priority | lower }}">{{ case.priority }}</span></td>
+          <td><span class="badge status-badge status-{{ case.status | lower | replace(' ', '-') }}">{{ case.status }}</span></td>
+          <td class="text-muted small">{{ case.assigned_owner or '—' }}</td>
+          <td class="text-muted small" style="white-space:nowrap;">{{ case.created_at.strftime('%b %d, %Y') if case.created_at else '—' }}</td>
+          <td class="text-center pe-3">
+            <a href="{{ url_for('case_detail', case_id=case.id) }}" class="btn-view" title="View Details">
+              <i class="bi bi-arrow-right"></i>
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
   </div>
 </div>
-<div class="mt-2 text-muted small ps-1">Showing {{ cases|length }} case(s).</div>
+
+<!-- ═══ PAGINATION ═══ -->
+<div class="pagination-wrap">
+  <div class="pagination-info">
+    Showing
+    <strong>{{ ((current_page - 1) * per_page) + 1 }}</strong>
+    –
+    <strong>{{ [current_page * per_page, total_count] | min }}</strong>
+    of <strong>{{ total_count }}</strong> case(s)
+  </div>
+
+  {% if total_pages > 1 %}
+  <nav class="pagination-nav">
+    <!-- Prev -->
+    <a href="{{ url_for('cases', page=current_page - 1, status=status_filter, priority=priority_filter) }}"
+       class="page-btn {% if current_page <= 1 %}disabled{% endif %}" title="Previous">
+      <i class="bi bi-chevron-left"></i>
+    </a>
+
+    {% for p in range(1, total_pages + 1) %}
+      {% if p == current_page %}
+        <span class="page-btn active">{{ p }}</span>
+      {% elif p == 1 or p == total_pages or (p >= current_page - 2 and p <= current_page + 2) %}
+        <a href="{{ url_for('cases', page=p, status=status_filter, priority=priority_filter) }}" class="page-btn">{{ p }}</a>
+      {% elif p == current_page - 3 or p == current_page + 3 %}
+        <span class="page-btn disabled" style="font-size:0.7rem;">…</span>
+      {% endif %}
+    {% endfor %}
+
+    <!-- Next -->
+    <a href="{{ url_for('cases', page=current_page + 1, status=status_filter, priority=priority_filter) }}"
+       class="page-btn {% if current_page >= total_pages %}disabled{% endif %}" title="Next">
+      <i class="bi bi-chevron-right"></i>
+    </a>
+  </nav>
+  {% endif %}
+</div>
 
 {% else %}
-<div class="card border-0 shadow-sm">
-  <div class="card-body text-center py-5">
-    <i class="bi bi-folder-x fs-1 text-muted mb-3 d-block"></i>
-    <h5 class="text-muted">No cases found</h5>
+
+<!-- ═══ EMPTY STATE ═══ -->
+<div class="cases-table-wrap">
+  <div class="empty-state">
+    <div class="empty-icon"><i class="bi bi-folder-x"></i></div>
+    <h5 class="fw-bold mb-2">No Cases Found</h5>
     <p class="text-muted mb-3">
-      {% if status_filter or priority_filter %}No cases match your filters.
+      {% if status_filter or priority_filter %}No cases match your current filters.
       {% else %}No fraud cases have been created yet.{% endif %}
     </p>
-    <button class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#createCaseModal">
+    <button class="btn btn-danger fw-semibold px-4" data-bs-toggle="modal" data-bs-target="#createCaseModal">
       <i class="bi bi-plus-lg me-1"></i> Create First Case
     </button>
   </div>
 </div>
 {% endif %}
 
-<!-- ── Create Case Modal ────────────────────────────────────────────── -->
-<div class="modal fade" id="createCaseModal" tabindex="-1" aria-labelledby="createCaseLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
+<!-- ═══ CREATE CASE MODAL ═══ -->
+<div class="modal fade modal-glass" id="createCaseModal" tabindex="-1" aria-labelledby="createCaseLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-      <div class="modal-header border-0">
+      <div class="modal-header border-0 pb-0">
         <h5 class="modal-title fw-bold" id="createCaseLabel">
           <i class="bi bi-plus-circle me-2 text-danger"></i>New Fraud Case
         </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <form method="POST" action="{{ url_for('create_case') }}">
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold">Transaction Reference <span class="text-danger">*</span></label>
-              <input type="text" name="transaction_ref" class="form-control" placeholder="e.g. TXN-00123456" required />
+              <label class="form-label fw-semibold small">Transaction Reference <span class="text-danger">*</span></label>
+              <input type="text" name="transaction_ref" class="form-control" placeholder="e.g. TXN-00123456" required>
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Fraud Probability <span class="text-danger">*</span></label>
-              <input type="number" name="fraud_probability" class="form-control"
-                     step="0.0001" min="0" max="1" placeholder="0.0 – 1.0" required />
+              <label class="form-label fw-semibold small">Fraud Probability <span class="text-danger">*</span></label>
+              <input type="number" name="fraud_probability" class="form-control" step="0.0001" min="0" max="1" placeholder="0.0 – 1.0" required>
             </div>
             <div class="col-md-3">
-              <label class="form-label fw-semibold">Predicted Label <span class="text-danger">*</span></label>
+              <label class="form-label fw-semibold small">Predicted Label <span class="text-danger">*</span></label>
               <select name="predicted_label" class="form-select" required>
                 <option value="1">1 — Fraud</option>
                 <option value="0">0 — Legitimate</option>
               </select>
             </div>
             <div class="col-md-4">
-              <label class="form-label fw-semibold">Priority</label>
+              <label class="form-label fw-semibold small">Priority</label>
               <select name="priority" class="form-select">
                 {% for p in priorities %}
                 <option value="{{ p }}" {% if p == 'Medium' %}selected{% endif %}>{{ p }}</option>
@@ -175,18 +416,23 @@
               </select>
             </div>
             <div class="col-md-8">
-              <label class="form-label fw-semibold">Assigned Owner</label>
-              <input type="text" name="assigned_owner" class="form-control" placeholder="Analyst name (optional)" />
+              <label class="form-label fw-semibold small">Assigned Owner</label>
+              <select name="assigned_owner" class="form-select">
+                <option value="">-- Unassigned --</option>
+                {% for user in all_users %}
+                <option value="{{ user.username }}">{{ user.username }} ({{ user.role }})</option>
+                {% endfor %}
+              </select>
             </div>
             <div class="col-12">
-              <label class="form-label fw-semibold">Initial Notes</label>
+              <label class="form-label fw-semibold small">Initial Notes</label>
               <textarea name="notes" class="form-control" rows="3" placeholder="Optional investigation notes…"></textarea>
             </div>
           </div>
         </div>
-        <div class="modal-footer border-0">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-danger">
+        <div class="modal-footer border-0 pt-0">
+          <button type="button" class="btn btn-glass px-4" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger fw-semibold px-4">
             <i class="bi bi-plus-lg me-1"></i> Create Case
           </button>
         </div>
@@ -194,4 +440,5 @@
     </div>
   </div>
 </div>
+
 {% endblock %}

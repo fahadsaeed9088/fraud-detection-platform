@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block title %}Login - Fraud Detection Platform{% endblock %}
+
+{% block head %}
+<style>
+.auth-container {
+  min-height: calc(100vh - 200px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-card {
+  background: linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95));
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 1.5rem;
+  padding: 3rem;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 100px -20px rgba(59, 130, 246, 0.3);
+  backdrop-filter: blur(20px);
+}
+
+.auth-icon-wrap {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.5rem;
+  box-shadow: 0 10px 40px -10px rgba(59, 130, 246, 0.6);
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 10px 40px -10px rgba(59, 130, 246, 0.6); }
+  50% { box-shadow: 0 10px 60px -10px rgba(139, 92, 246, 0.8); }
+}
+
+.auth-icon-wrap i {
+  font-size: 2.5rem;
+  color: white;
+}
+
+.auth-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, #f8fafc, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.auth-subtitle {
+  color: var(--text-muted);
+  margin-bottom: 2rem;
+}
+
+.form-floating {
+  position: relative;
+  --gap-start: 1rem;
+  --gap-width: var(--label-width, 5.5rem);
+}
+
+.form-floating .form-control {
+  background: rgba(0, 0, 0, 0.25) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  border-radius: 1rem !important;
+  padding: 1.25rem 1rem !important;
+  height: calc(3.5rem + 2px) !important;
+  color: white !important;
+  transition: all 0.2s ease;
+}
+
+.form-floating label, .form-floating label::before, .form-floating label::after {
+  padding: 1rem 1.25rem !important;
+  color: #94a3b8 !important;
+  transition: all 0.2s ease !important;
+  background: none !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  pointer-events: none;
+}
+
+.form-floating .form-control:focus {
+  border-color: #3b82f6 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.form-floating .form-control:not(:placeholder-shown) {
+  border-top-color: inherit;
+}
+
+/* Create the physical gap in the border using a mask */
+.form-floating > .form-control:focus,
+.form-floating > .form-control:not(:placeholder-shown) {
+  -webkit-mask-image: 
+    linear-gradient(to right, #000 var(--gap-start), transparent var(--gap-start), transparent calc(var(--gap-start) + var(--gap-width)), #000 calc(var(--gap-start) + var(--gap-width))),
+    linear-gradient(#000, #000);
+  -webkit-mask-size: 100% 2px, 100% calc(100% - 2px);
+  -webkit-mask-position: top, bottom;
+  -webkit-mask-repeat: no-repeat, no-repeat;
+  mask-image: 
+    linear-gradient(to right, #000 var(--gap-start), transparent var(--gap-start), transparent calc(var(--gap-start) + var(--gap-width)), #000 calc(var(--gap-start) + var(--gap-width))),
+    linear-gradient(#000, #000);
+  mask-size: 100% 2px, 100% calc(100% - 2px);
+  mask-position: top, bottom;
+  mask-repeat: no-repeat, no-repeat;
+}
+
+.form-floating > .form-control:focus ~ label,
+.form-floating > .form-control:not(:placeholder-shown) ~ label {
+  transform: scale(0.8) translateY(-0.95rem) translateX(0.15rem) !important;
+  background: none !important;
+  background-color: transparent !important;
+  padding: 0 0.5rem !important;
+  height: auto !important;
+  opacity: 1 !important;
+  color: #60a5fa !important;
+  z-index: 10;
+  box-shadow: none !important;
+  border-radius: 2px;
+}
+
+.btn-auth {
+  background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+  border: none;
+  border-radius: 0.75rem;
+  padding: 1rem 2rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.5);
+}
+
+.btn-auth:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 15px 40px -10px rgba(59, 130, 246, 0.6);
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+.auth-footer a {
+  color: var(--accent-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.auth-footer a:hover {
+  color: #8b5cf6;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.divider::before, .divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.divider span {
+  padding: 0 1rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="text-center">
+      <div class="auth-icon-wrap">
+        <i class="bi bi-shield-lock"></i>
+      </div>
+      <h1 class="auth-title">Welcome Back</h1>
+      <p class="auth-subtitle">Sign in to manage fraud cases</p>
+    </div>
+    
+    <form method="POST" action="{{ url_for('login') }}">
+      <div class="form-floating mb-3">
+        <input type="text" class="form-control" id="username" name="username" required autofocus placeholder="Username">
+        <label for="username"><i class="bi bi-person me-2"></i>Username</label>
+      </div>
+      
+      <div class="form-floating mb-4">
+        <input type="password" class="form-control" id="password" name="password" required placeholder="Password">
+        <label for="password"><i class="bi bi-key me-2"></i>Password</label>
+      </div>
+      
+      <div class="d-grid">
+        <button type="submit" class="btn btn-auth text-white">
+          <i class="bi bi-box-arrow-in-right me-2"></i>Sign In
+        </button>
+      </div>
+    </form>
+    
+    <div class="divider">
+      <span>OR</span>
+    </div>
+    
+    <div class="auth-footer">
+      <p class="text-muted mb-2">Default: <code>admin / admin123</code></p>
+      <p class="mb-0">Don't have an account? <a href="{{ url_for('signup') }}">Create one</a></p>
+    </div>
+  </div>
+</div>
+{% endblock %}
